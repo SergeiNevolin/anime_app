@@ -7,7 +7,7 @@
  * documentation requires.
  */
 
-import { getInitData } from "@/lib/telegram/webapp";
+import { getInitData, useDevAuth, getDevAuthCredential } from "@/lib/telegram/webapp";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
@@ -66,10 +66,17 @@ function buildHeaders(hasBody: boolean): HeadersInit {
   if (hasBody) {
     headers["Content-Type"] = "application/json";
   }
-  const initData = getInitData();
-  if (initData) {
-    headers.Authorization = `tma ${initData}`;
+  
+  // Use dev auth when enabled and no real initData
+  if (useDevAuth()) {
+    headers.Authorization = `dev ${getDevAuthCredential()}`;
+  } else {
+    const initData = getInitData();
+    if (initData) {
+      headers.Authorization = `tma ${initData}`;
+    }
   }
+  
   return headers;
 }
 

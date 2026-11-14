@@ -85,7 +85,7 @@ export interface TelegramWebApp {
 
 type EventHandler = (...args: unknown[]) => void;
 
-const EVENTS = {
+const _EVENTS = {
   themeChanged: "themeChanged",
   viewportChanged: "viewportChanged",
   backButtonClicked: "backButtonClicked",
@@ -94,7 +94,7 @@ const EVENTS = {
   activated: "activated",
 } as const;
 
-export type TelegramEvent = (typeof EVENTS)[keyof typeof EVENTS];
+export type TelegramEvent = (typeof _EVENTS)[keyof typeof _EVENTS];
 
 const noop = (): void => undefined;
 
@@ -207,6 +207,20 @@ export function isTelegramEnvironment(): boolean {
  */
 export function getInitData(): string {
   return getTelegram().initData ?? "";
+}
+
+/**
+ * Return whether dev authentication should be used.
+ */
+export function useDevAuth(): boolean {
+  return process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true";
+}
+
+/**
+ * Return the dev auth credential.
+ */
+export function getDevAuthCredential(): string {
+  return "dev";
 }
 
 /**

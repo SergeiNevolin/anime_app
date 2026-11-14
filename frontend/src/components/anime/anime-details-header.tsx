@@ -51,7 +51,7 @@ export function AnimeDetailsHeader({ anime }: { anime: AnimeDetails }) {
           <dd className="text-text">
             {formatReleaseStatus(anime.release_status)}
           </dd>
-          {anime.dubbing_teams.length ? (
+          {anime.dubbing_teams && anime.dubbing_teams.length ? (
             <>
               <dt className="text-text-muted">Озвучка</dt>
               <dd className="truncate text-text">
@@ -61,7 +61,7 @@ export function AnimeDetailsHeader({ anime }: { anime: AnimeDetails }) {
           ) : null}
         </dl>
 
-        {anime.genres.length ? (
+        {anime.genres && anime.genres.length ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {anime.genres.map((genre) => (
               <Badge key={genre.name}>{genre.name}</Badge>

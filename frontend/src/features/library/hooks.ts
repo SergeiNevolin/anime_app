@@ -15,10 +15,14 @@ export const libraryQueryKey = ["library"] as const;
 export const continueWatchingQueryKey = ["library", "continue"] as const;
 
 /** Return the personal library. */
-export function useLibrary(status: LibraryStatus | null = null) {
+export function useLibrary(
+  status: LibraryStatus | null = null,
+  options: { page?: number; pageSize?: number } = {},
+) {
+  const { page = 1, pageSize = 20 } = options;
   return useQuery({
-    queryKey: [...libraryQueryKey, status ?? "all"],
-    queryFn: ({ signal }) => fetchLibrary({ status }, { signal }),
+    queryKey: [...libraryQueryKey, status ?? "all", page, pageSize],
+    queryFn: ({ signal }) => fetchLibrary({ status, page, pageSize }, { signal }),
     staleTime: 30_000,
   });
 }
@@ -39,10 +43,12 @@ export function useAddToLibrary() {
     mutationFn: ({
       animeId,
       status,
+      progressEpisode,
     }: {
       animeId: string;
       status?: LibraryStatus;
-    }) => addToLibrary(animeId, status),
+      progressEpisode?: number;
+    }) => addToLibrary(animeId, status, progressEpisode),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: libraryQueryKey });
       void queryClient.invalidateQueries({ queryKey: continueWatchingQueryKey });

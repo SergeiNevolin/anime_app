@@ -2,32 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { AnimeList } from "@/components/anime/anime-list";
 import { AppShell } from "@/components/layout/app-shell";
 import { SearchInput } from "@/components/ui/search-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContinueWatching } from "@/features/library/hooks";
-import { useOngoingAnime } from "@/features/anime/hooks";
 
 /**
- * The home screen: a search field, the titles in progress and the titles
- * that are currently airing.
+ * The home screen: a search field and the titles in progress.
  */
 export default function HomePage() {
-  const router = useRouter();
   const [term, setTerm] = useState("");
   const continueWatching = useContinueWatching();
-  const ongoing = useOngoingAnime();
-
-  const submit = (value: string) => {
-    const trimmed = value.trim();
-    if (trimmed.length >= 2) {
-      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
-    }
-  };
 
   return (
     <AppShell title="Anime Watch" subtitle="Поиск и просмотр аниме">
@@ -35,7 +22,6 @@ export default function HomePage() {
         <SearchInput
           value={term}
           onChange={setTerm}
-          onSubmit={submit}
           placeholder="Название аниме"
         />
       </section>
@@ -89,28 +75,6 @@ export default function HomePage() {
         ) : (
           <p className="py-4 text-[13px] text-text-muted">
             Здесь появятся тайтлы, которые вы начали смотреть.
-          </p>
-        )}
-      </section>
-
-      <section className="mt-6" aria-labelledby="ongoing-heading">
-        <h2
-          id="ongoing-heading"
-          className="mb-1 border-b border-border pb-1.5 text-[13px] font-semibold uppercase tracking-wide text-text-muted"
-        >
-          Сейчас выходят
-        </h2>
-        {ongoing.isPending ? (
-          <div className="flex flex-col gap-3 py-3">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        ) : ongoing.data?.length ? (
-          <AnimeList items={ongoing.data} />
-        ) : (
-          <p className="py-4 text-[13px] text-text-muted">
-            Источник с обновляемым каталогом сейчас недоступен.
           </p>
         )}
       </section>

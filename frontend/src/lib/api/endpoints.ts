@@ -112,7 +112,7 @@ export async function fetchPlaybackOptions(
 export async function fetchLibrary(
   params: { status?: LibraryStatus | null; page?: number; pageSize?: number } = {},
   options?: RequestOptions,
-): Promise<{ items: LibraryItem[]; page: number; pageSize: number; total: number | null }> {
+): Promise<{ items: LibraryItem[]; page: number; pageSize: number; total: number | null; hasMore: boolean }> {
   const payload = await apiRequest<unknown>("/library", {
     ...options,
     query: {
@@ -127,6 +127,7 @@ export async function fetchLibrary(
     page: parsed.page,
     pageSize: parsed.page_size,
     total: parsed.total ?? null,
+    hasMore: parsed.has_more ?? false,
   };
 }
 
@@ -140,12 +141,13 @@ export async function fetchContinueWatching(
 export async function addToLibrary(
   animeId: string,
   status: LibraryStatus = "plan_to_watch",
+  progressEpisode?: number,
   options?: RequestOptions,
 ): Promise<LibraryItem> {
   const payload = await apiRequest<unknown>("/library", {
     ...options,
     method: "POST",
-    body: { anime_id: animeId, status },
+    body: { anime_id: animeId, status, progress_episode: progressEpisode ?? 0 },
   });
   return libraryItemSchema.parse(payload) as LibraryItem;
 }

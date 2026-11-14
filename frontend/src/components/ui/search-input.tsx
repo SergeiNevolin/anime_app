@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils/cn";
 interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit?: (value: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
   className?: string;
@@ -23,7 +22,6 @@ interface SearchInputProps {
 export function SearchInput({
   value,
   onChange,
-  onSubmit,
   placeholder = "Поиск аниме",
   autoFocus = false,
   className,
