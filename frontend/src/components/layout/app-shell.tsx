@@ -18,11 +18,13 @@ export function AppShell({
   subtitle,
   back = false,
   children,
+  className,
 }: {
   title: string;
   subtitle?: string;
   back?: boolean;
   children: ReactNode;
+  className?: string;
 }) {
   const router = useRouter();
 
@@ -42,7 +44,7 @@ export function AppShell({
   }, [back, router]);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg">
+    <div className={`flex min-h-dvh flex-col bg-bg ${className ?? ""}`}>
       <header className="sticky top-0 z-20 border-b border-border bg-header">
         <div className="mx-auto flex min-h-12 max-w-3xl items-center gap-2 px-4 py-2">
           {back ? (

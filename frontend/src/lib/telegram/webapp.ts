@@ -212,7 +212,7 @@ export function getInitData(): string {
 /**
  * Return whether dev authentication should be used.
  */
-export function useDevAuth(): boolean {
+export function isDevAuthEnabled(): boolean {
   return process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true";
 }
 

@@ -18,16 +18,17 @@ export function AnimeCard({ anime }: { anime: AnimeSummary }) {
       data-testid="anime-card"
     >
       <div className="relative h-[92px] w-[62px] shrink-0 overflow-hidden rounded-control bg-surface-muted">
-        {anime.poster_url ? (
-          <Image
-            src={anime.poster_url}
-            alt=""
-            fill
-            sizes="62px"
-            loading="lazy"
-            className="object-cover"
-          />
-        ) : null}
+{anime.poster_url ? (
+            <Image
+              src={anime.poster_url}
+              alt=""
+              fill
+              sizes="62px"
+              quality={85}
+              loading="lazy"
+              className="object-cover"
+            />
+          ) : null}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14px] font-medium leading-snug text-text group-hover:text-accent">

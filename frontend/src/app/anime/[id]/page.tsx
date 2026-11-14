@@ -1,71 +1,118 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
+import Link from "next/link";
 
-import { AnimeDetailsHeader } from "@/components/anime/anime-details-header";
-import { EpisodeList } from "@/components/anime/episode-list";
 import { AppShell } from "@/components/layout/app-shell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { Button } from "@/components/ui/button";
+import { VideoJSPlayer } from "@/components/player/simple-player";
+import { EpisodeSelector } from "@/components/anime/episode-selector";
+import { AnimeInfoHeader } from "@/components/anime/anime-info-header";
 import { useAnimeDetails, useAnimeEpisodes } from "@/features/anime/hooks";
-import { useCurrentUser } from "@/features/auth/hooks";
-import { useAddToLibrary, useUpdateLibraryEntry } from "@/features/library/hooks";
-import type { LibraryStatus } from "@/lib/api/types";
+import { useEpisodeSources, usePlaybackOptions } from "@/features/player/hooks";
+import { useUpdateLibraryEntry, useLibrary } from "@/features/library/hooks";
+import type { LibraryStatus, LibraryItem, EpisodeSource, PlaybackOption } from "@/lib/api/types";
 
-export default function AnimePage() {
+function AnimePageContent() {
   const params = useParams();
   const animeId = params.id as string;
-  const { data: user } = useCurrentUser();
   const { data: anime, isPending: animePending, isError: animeError, error: animeErr } = useAnimeDetails(animeId);
-  const { data: episodesData, isPending: episodesPending, isError: episodesError, error: episodesErr } = useAnimeEpisodes(animeId);
-  const addToLibrary = useAddToLibrary();
+  const { data: episodesData } = useAnimeEpisodes(animeId);
+
+  // Episode sources and playback options for the currently selected episode
+  const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
+  const { data: sources } = useEpisodeSources(selectedEpisodeId ?? "");
+  const { data: playbackOptions } = usePlaybackOptions(selectedEpisodeId ?? "", sources?.[0]?.key ?? null);
+
   const updateLibrary = useUpdateLibraryEntry();
-  const [selectedEpisode, setSelectedEpisode] = useState<string | null>(episodesData?.items[0]?.id ?? null);
-  const [isInLibrary, setIsInLibrary] = useState(false);
-  const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>("plan_to_watch");
-  const [libraryProgress, setLibraryProgress] = useState(0);
+  const { data: libraryData } = useLibrary(null, { page: 1, pageSize: 1000 });
 
   const episodes = episodesData?.items ?? [];
+  const libraryEntry = libraryData?.items.find((item: LibraryItem) => item.anime_id === animeId);
 
-  const handleAddToLibrary = async (status: LibraryStatus = "plan_to_watch", progress = 0) => {
-    try {
-      await addToLibrary.mutateAsync({ animeId, status, progressEpisode: progress });
-      setIsInLibrary(true);
-      setLibraryStatus(status);
-      setLibraryProgress(progress);
-    } catch {
-      // Error handled by mutation
+  const [libraryStatus, setLibraryStatus] = useState<LibraryStatus>("plan_to_watch");
+  const [theaterMode, setTheaterMode] = useState(false);
+  const [infoExpanded, setInfoExpanded] = useState(false);
+
+  const firstEpisode = episodes[0] ?? null;
+  const lastWatchedEpisode = (libraryEntry?.progress_episode && episodes[libraryEntry.progress_episode - 1]) ?? null;
+  const continueEpisode = (lastWatchedEpisode ?? firstEpisode) as typeof episodes[0] | null;
+
+  // Initialize selected episode
+  useEffect(() => {
+    if (!selectedEpisodeId && continueEpisode) {
+      setSelectedEpisodeId(continueEpisode.id);
     }
-  };
+  }, [continueEpisode, selectedEpisodeId]);
 
-  const handleUpdateProgress = async (progress: number) => {
+  useEffect(() => {
+    if (libraryEntry) {
+      setLibraryStatus(libraryEntry.status);
+    }
+  }, [libraryEntry]);
+
+  const handleUpdateProgress = useCallback(async (progress: number) => {
     try {
       await updateLibrary.mutateAsync({ animeId, progressEpisode: progress });
-      setLibraryProgress(progress);
       if (progress > 0 && libraryStatus === "plan_to_watch") {
         await updateLibrary.mutateAsync({ animeId, status: "watching" });
         setLibraryStatus("watching");
       }
-    } catch {
-      // Error handled by mutation
-    }
-  };
+    } catch {}
+  }, [animeId, libraryStatus, updateLibrary]);
 
-  const handleStatusChange = async (status: LibraryStatus) => {
+  const handleStatusChange = useCallback(async (status: LibraryStatus) => {
     try {
       await updateLibrary.mutateAsync({ animeId, status });
       setLibraryStatus(status);
-    } catch {
-      // Error handled by mutation
+    } catch {}
+  }, [animeId, updateLibrary]);
+
+  const handleEpisodeChange = useCallback((episodeId: string) => {
+    setSelectedEpisodeId(episodeId);
+  }, []);
+
+  const handleSourceChange = useCallback((_source: EpisodeSource) => {
+    // Source change handled by player internally
+  }, []);
+
+  const handlePlaybackChange = useCallback((_option: PlaybackOption) => {
+    // Playback change handled by player internally
+  }, []);
+
+  const handlePlay = useCallback(() => {
+    // Play event - could track analytics
+  }, []);
+
+  const handlePause = useCallback(() => {
+    // Pause event
+  }, []);
+
+  const currentEpisode = episodes.find((ep) => ep.id === selectedEpisodeId);
+
+  const handleEnded = useCallback(() => {
+    const nextEpisode = episodes.find((ep) => ep.number === (currentEpisode?.number ?? 0) + 1);
+    if (nextEpisode) {
+      setSelectedEpisodeId(nextEpisode.id);
     }
-  };
+  }, [episodes, currentEpisode]);
+
+  const handleTimeUpdate = useCallback((currentTime: number, duration: number) => {
+    if (duration > 0 && currentTime > 0) {
+      const episodeProgress = Math.round((currentTime / duration) * 100);
+      if (episodeProgress > 90 && currentEpisode) {
+        handleUpdateProgress(currentEpisode.number);
+      }
+    }
+  }, [currentEpisode, handleUpdateProgress]);
 
   if (animePending) {
     return (
       <AppShell title="Загрузка…" back>
-        <div className="flex flex-col gap-4 py-8">
+        <div className="flex flex-col gap-4 py-8 max-w-6xl mx-auto px-4">
           <Skeleton className="h-[168px] w-[112px] rounded-control" />
           <Skeleton className="h-6 w-3/4" />
           <Skeleton className="h-4 w-1/2" />
@@ -91,96 +138,117 @@ export default function AnimePage() {
   }
 
   return (
-    <AppShell title={anime.title} subtitle={anime.original_title ?? undefined} back>
-      <AnimeDetailsHeader anime={anime} />
+    <AppShell
+      title={anime.title}
+      subtitle={anime.original_title ?? undefined}
+      back
+      className={theaterMode ? "bg-black" : ""}
+    >
+      <div className="relative flex flex-col min-h-screen">
+        {/* Top bar */}
+        <header className={`sticky top-0 z-30 flex items-center justify-between gap-3 px-4 py-2 border-b border-border bg-header/95 backdrop-blur ${theaterMode ? "bg-black/95" : ""}`}>
+          <nav className="flex flex-wrap items-center gap-2 text-[12px] text-text-muted" aria-label="Breadcrumb">
+            <Link href={`/anime/${animeId}`} className="hover:text-accent truncate max-w-[200px] font-medium">
+              {anime.title}
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span className="font-medium text-text">Эпизод {currentEpisode?.number ?? "—"}</span>
+          </nav>
 
-      {anime.description && (
-        <section className="mt-5" aria-labelledby="description-heading">
-          <h3 id="description-heading" className="mb-2 text-[13px] font-semibold uppercase tracking-wide text-text-muted">
-            Описание
-          </h3>
-          <p className="text-[14px] leading-relaxed text-text whitespace-pre-line">{anime.description}</p>
-        </section>
-      )}
-
-      <section className="mt-5" aria-labelledby="episodes-heading">
-        <div className="flex items-center justify-between mb-2">
-          <h3 id="episodes-heading" className="text-[13px] font-semibold uppercase tracking-wide text-text-muted">
-            Эпизоды {episodesData?.total ? `(${episodesData.total})` : ""}
-          </h3>
-        </div>
-        {episodesPending && episodes.length === 0 ? (
-          <div className="flex flex-col gap-3 py-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-        ) : episodesError ? (
-          <ErrorState
-            title="Ошибка загрузки эпизодов"
-            description={episodesErr instanceof Error ? episodesErr.message : "Не удалось загрузить список эпизодов"}
-            onRetry={() => window.location.reload()}
-          />
-        ) : episodes.length === 0 ? (
-          <p className="py-4 text-[13px] text-text-muted">Эпизоды не найдены.</p>
-        ) : (
-          <EpisodeList
-            episodes={episodes}
-            selectedId={selectedEpisode}
-            onSelect={(ep) => setSelectedEpisode(ep.id)}
-          />
-        )}
-      </section>
-
-      {user && (
-        <section className="mt-6 border-t border-border pt-4" aria-labelledby="library-heading">
-          <h3 id="library-heading" className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-text-muted">
-            В библиотеке
-          </h3>
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div className="flex flex-wrap gap-2">
-              {["plan_to_watch", "watching", "completed", "on_hold", "dropped"].map((status) => (
-                <Button
-                  key={status}
-                  variant={libraryStatus === status ? "primary" : "secondary"}
-                  size="sm"
-                  onClick={() => handleStatusChange(status as LibraryStatus)}
-                  disabled={addToLibrary.isPending || updateLibrary.isPending}
-                >
-                  {status.replace("_", " ")}
-                </Button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-[13px] text-text-muted">Прогресс:</span>
-              <input
-                type="number"
-                min="0"
-                max={anime.total_episodes ?? 1000}
-                value={libraryProgress}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10) || 0;
-                  setLibraryProgress(val);
-                  handleUpdateProgress(val);
-                }}
-                className="w-20 px-2 py-1.5 text-[13px] border border-border rounded-control bg-surface text-text"
-              />
-              {anime.total_episodes && (
-                <span className="text-[13px] text-text-muted">/ {anime.total_episodes}</span>
-              )}
-            </div>
-          </div>
-          {!isInLibrary && (
+          <div className="flex items-center gap-2">
             <Button
-              className="mt-3 w-full sm:w-auto"
-              onClick={() => handleAddToLibrary("plan_to_watch", 0)}
-              disabled={addToLibrary.isPending}
+              variant="ghost"
+              size="sm"
+              onClick={() => setTheaterMode(!theaterMode)}
+              aria-label={theaterMode ? "Выключить кинорежим" : "Включить кинорежим"}
+              className={theaterMode ? "text-accent" : ""}
             >
-              {addToLibrary.isPending ? "Добавление…" : "Добавить в библиотеку"}
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={theaterMode ? "M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" : "M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"} />
+              </svg>
             </Button>
-          )}
-        </section>
-      )}
+          </div>
+        </header>
+
+        {/* Main content */}
+        <main className="flex-1 flex flex-col overflow-hidden max-w-6xl mx-auto w-full">
+          {/* Anime Info Header */}
+          <AnimeInfoHeader
+            anime={anime}
+            animeId={animeId}
+            firstEpisode={firstEpisode}
+            libraryEntry={libraryEntry}
+            libraryStatus={libraryStatus}
+            isInLibrary={!!libraryEntry}
+            onStatusChange={handleStatusChange}
+            onProgressChange={handleUpdateProgress}
+            onAddToLibrary={() => handleUpdateProgress(0)}
+            expanded={infoExpanded}
+            onToggleExpand={setInfoExpanded}
+          />
+
+          {/* Episode Selector */}
+          <div className="px-4 py-3 border-b border-border bg-surface/50">
+            <EpisodeSelector
+              episodes={episodes}
+              selectedEpisodeId={selectedEpisodeId}
+              onChange={handleEpisodeChange}
+              currentEpisode={currentEpisode}
+              totalEpisodes={(anime.total_episodes ?? null) as number | null}
+            />
+          </div>
+
+          {/* Player */}
+          <div className="relative flex-shrink-0 px-4 py-4">
+            {currentEpisode && (
+              <div className="relative w-full aspect-video max-w-full">
+                <VideoJSPlayer
+                  currentEpisodeNumber={currentEpisode.number}
+                  totalEpisodes={(anime.total_episodes ?? null) as number | null}
+                  episodes={episodes}
+                  sources={sources ?? []}
+                  playbackOptions={playbackOptions ?? []}
+                  onEpisodeChange={handleEpisodeChange}
+                  onSourceChange={handleSourceChange}
+                  onPlaybackChange={handlePlaybackChange}
+                  onPlay={handlePlay}
+                  onPause={handlePause}
+                  onEnded={handleEnded}
+                  onTimeUpdate={handleTimeUpdate}
+                  autoPlay={true}
+                  className="w-full h-full"
+                />
+              </div>
+            )}
+
+{!currentEpisode && (
+              <div className="aspect-video w-full rounded-xl bg-black overflow-hidden flex items-center justify-center text-white">
+                <p className="text-center px-4">Выберите эпизод для просмотра</p>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
     </AppShell>
+  );
+}
+
+export default function AnimePage() {
+  return (
+    <Suspense fallback={
+      <AppShell title="Загрузка…" back>
+        <div className="flex flex-col gap-4 py-8 max-w-6xl mx-auto px-4">
+          <Skeleton className="h-[168px] w-[112px] rounded-control" />
+          <Skeleton className="h-6 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      </AppShell>
+    }>
+      <AnimePageContent />
+    </Suspense>
   );
 }

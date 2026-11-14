@@ -7,7 +7,7 @@
  * documentation requires.
  */
 
-import { getInitData, useDevAuth, getDevAuthCredential } from "@/lib/telegram/webapp";
+import { getInitData, isDevAuthEnabled, getDevAuthCredential } from "@/lib/telegram/webapp";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
@@ -68,7 +68,7 @@ function buildHeaders(hasBody: boolean): HeadersInit {
   }
   
   // Use dev auth when enabled and no real initData
-  if (useDevAuth()) {
+  if (isDevAuthEnabled()) {
     headers.Authorization = `dev ${getDevAuthCredential()}`;
   } else {
     const initData = getInitData();

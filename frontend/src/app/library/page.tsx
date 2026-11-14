@@ -152,14 +152,15 @@ export default function LibraryPage() {
               >
                 <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-control bg-surface-muted">
 {item.anime?.poster_url ? (
-                      <Image
-                        src={item.anime.poster_url}
-                        alt=""
-                        fill
-                        sizes="40px"
-                        className="object-cover"
-                      />
-                    ) : null}
+                        <Image
+                          src={item.anime.poster_url}
+                          alt=""
+                          fill
+                          sizes="40px"
+                          quality={85}
+                          className="object-cover"
+                        />
+                      ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] text-text">{item.anime?.title ?? "Аниме"}</p>
@@ -187,15 +188,16 @@ export default function LibraryPage() {
               <div key={item.id} className="border-b border-border last:border-b-0">
                 <div className="flex gap-3 py-3">
                   <div className="relative h-[92px] w-[62px] shrink-0 overflow-hidden rounded-control bg-surface-muted">
-                    {item.anime?.poster_url ? (
-                      <Image
-                        src={item.anime.poster_url}
-                        alt=""
-                        fill
-                        sizes="40px"
-                        className="object-cover"
-                      />
-                    ) : null}
+{item.anime?.poster_url ? (
+                        <Image
+                          src={item.anime.poster_url}
+                          alt=""
+                          fill
+                          sizes="40px"
+                          quality={85}
+                          className="object-cover"
+                        />
+                      ) : null}
                   </div>
                   <div className="min-w-0 flex-1">
                     <Link

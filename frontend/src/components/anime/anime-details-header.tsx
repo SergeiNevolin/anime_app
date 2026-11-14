@@ -14,16 +14,17 @@ export function AnimeDetailsHeader({ anime }: { anime: AnimeDetails }) {
   return (
     <section className="flex gap-4">
       <div className="relative h-[168px] w-[112px] shrink-0 overflow-hidden rounded-control bg-surface-muted">
-        {anime.poster_url ? (
-          <Image
-            src={anime.poster_url}
-            alt={anime.title}
-            fill
-            sizes="112px"
-            priority
-            className="object-cover"
-          />
-        ) : null}
+{anime.poster_url ? (
+            <Image
+              src={anime.poster_url}
+              alt={anime.title}
+              fill
+              sizes="112px"
+              quality={90}
+              priority
+              className="object-cover"
+            />
+          ) : null}
       </div>
 
       <div className="min-w-0 flex-1">
