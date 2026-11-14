@@ -1,0 +1,27 @@
+# Caddy configuration for the production deployment.
+#
+# The Mini App is served over HTTPS by Caddy, the API is exposed under
+# /api/* and the rest is handled by the Next.js application.
+
+{
+	email {$ACME_EMAIL:admin@example.org}
+}
+
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+
+	handle_path /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options SAMEORIGIN
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
