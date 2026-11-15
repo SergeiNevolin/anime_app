@@ -193,7 +193,7 @@ describe("AnimePage", () => {
 
     render(<AnimePageContent animeId="uuid-1" />, { wrapper: createWrapper() });
 
-    expect(screen.getByText("Прогресс: 3 / 2")).toBeInTheDocument();
+    expect(screen.getByText("3 / 2")).toBeInTheDocument();
   });
 });
 

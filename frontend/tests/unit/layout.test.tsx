@@ -123,7 +123,7 @@ describe("LibraryControls", () => {
     );
 
     expect(screen.getByRole("button", { name: "Смотрю" })).toBeInTheDocument();
-    expect(screen.getByText("Прогресс: 3 / 26")).toBeInTheDocument();
+    expect(screen.getByText("3 / 26")).toBeInTheDocument();
   });
 
   it("reports a status change", async () => {
@@ -139,7 +139,7 @@ describe("LibraryControls", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Просмотрено" }));
+    await user.click(screen.getByRole("button", { name: "Готово" }));
 
     expect(onStatusChange).toHaveBeenCalledWith("completed");
   });
