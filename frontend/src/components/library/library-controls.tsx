@@ -13,24 +13,22 @@ const STATUSES: LibraryStatus[] = [
 ];
 
 /**
- * The library controls of an anime: status buttons and the progress field.
+ * The library controls of an anime: status buttons and progress display.
  */
 export function LibraryControls({
   status,
   progress,
   totalEpisodes,
   onStatusChange,
-  onProgressChange,
 }: {
   status: LibraryStatus;
   progress: number;
   totalEpisodes?: number | null;
   onStatusChange: (status: LibraryStatus) => void;
-  onProgressChange: (progress: number) => void;
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
-      {STATUSES.map((item) => (
+{STATUSES.map((item) => (
         <Button
           key={item}
           variant={status === item ? "primary" : "secondary"}
@@ -39,30 +37,13 @@ export function LibraryControls({
         >
           {formatLibraryStatus(item)}
         </Button>
-      ))}
+      ))},
 
-      <div className="ml-auto flex items-center gap-2">
-        <label htmlFor="anime-progress" className="text-[13px] text-text-muted">
-          Прогресс:
-        </label>
-        <input
-          id="anime-progress"
-          type="number"
-          min={0}
-          max={totalEpisodes ?? undefined}
-          value={progress}
-          onChange={(event) => {
-            const value = Number.parseInt(event.target.value, 10);
-            if (!Number.isNaN(value) && value >= 0) {
-              onProgressChange(value);
-            }
-          }}
-          className="w-20 rounded-control border border-border bg-surface px-2 py-1 text-[13px] text-text focus:border-accent focus:outline-none"
-        />
-        {totalEpisodes ? (
-          <span className="text-[13px] text-text-muted">/ {totalEpisodes}</span>
-        ) : null}
-      </div>
+      {totalEpisodes && (
+        <div className="ml-auto text-[13px] text-text-muted">
+          Прогресс: {progress} / {totalEpisodes}
+        </div>
+      )}
     </div>
   );
 }

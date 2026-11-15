@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { SearchInput } from "@/components/ui/search-input";
+import { SelectField } from "@/components/ui/select-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useContinueWatching } from "@/features/library/hooks";
-import { useAnimeSearch } from "@/features/search/hooks";
+import { useAnimeSearch, useProviders } from "@/features/search/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 const DEBOUNCE_MS = 300;
@@ -23,30 +24,56 @@ const DEBOUNCE_MS = 300;
 export default function HomePage() {
   const [term, setTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [provider, setProvider] = useState<string | undefined>(undefined);
   const debouncedTerm = useDebouncedValue(term.trim(), DEBOUNCE_MS);
 
   const continueWatching = useContinueWatching();
+  const providers = useProviders();
   const search = useAnimeSearch(debouncedTerm, {
     page,
     pageSize: 20,
+    provider,
     enabled: debouncedTerm.length >= 2,
   });
 
   const items = search.data?.items ?? [];
   const hasMore = Boolean(search.data?.hasMore);
   const showResults = debouncedTerm.length >= 2 || search.isError;
+  const showFilter = debouncedTerm.length >= 2;
 
   return (
     <AppShell title="Anime Watch" subtitle="Поиск и просмотр аниме">
       <section className="py-2">
-        <SearchInput
-          value={term}
-          onChange={(value) => {
-            setTerm(value);
-            setPage(1);
-          }}
-          placeholder="Название аниме"
-        />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <SearchInput
+              value={term}
+              onChange={(value) => {
+                setTerm(value);
+                setPage(1);
+              }}
+              placeholder="Название аниме"
+            />
+          </div>
+
+          {showFilter && providers.data && (
+            <div className="flex-shrink-0">
+              <SelectField
+                value={provider ?? ""}
+                onChange={(value) => {
+                  setProvider(value || undefined);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "", label: "Все источники" },
+                  ...providers.data.map((p) => ({ value: p.id, label: p.name })),
+                ]}
+                disabled={providers.isPending}
+                className="w-auto max-w-[180px]"
+              />
+            </div>
+          )}
+        </div>
       </section>
 
       {showResults ? (
@@ -79,7 +106,7 @@ export default function HomePage() {
           ) : (
             <>
               <AnimeList items={items} />
-              {hasMore ? (
+              {hasMore && (
                 <div className="pt-4">
                   <Button
                     variant="secondary"
@@ -89,7 +116,7 @@ export default function HomePage() {
                     Показать ещё
                   </Button>
                 </div>
-              ) : null}
+              )}
             </>
           )}
         </section>

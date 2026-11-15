@@ -49,13 +49,11 @@ export function VideoPlayer({
   src,
   headers,
   title,
-  officialUrl,
   className,
 }: {
   src: string;
   headers?: Record<string, string>;
   title?: string;
-  officialUrl?: string;
   className?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -134,16 +132,6 @@ export function VideoPlayer({
       >
         <p className="text-[15px] font-medium text-white">Ошибка воспроизведения</p>
         <p className="text-[13px] text-white/70">{error}</p>
-        {officialUrl ? (
-          <a
-            href={officialUrl}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="mt-1 text-[13px] text-accent hover:underline"
-          >
-            Открыть на сайте источника
-          </a>
-        ) : null}
       </div>
     );
   }
@@ -175,19 +163,9 @@ export function VideoPlayer({
         ) : null}
       </div>
 
-      {title || officialUrl ? (
-        <div className="mt-1.5 flex items-center justify-between gap-3 text-[12px] text-text-muted">
-          <span className="truncate">{title}</span>
-          {officialUrl ? (
-            <a
-              href={officialUrl}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="shrink-0 text-accent hover:underline"
-            >
-              Открыть на сайте источника
-            </a>
-          ) : null}
+      {title ? (
+        <div className="mt-1.5 text-[12px] text-text-muted truncate">
+          {title}
         </div>
       ) : null}
     </div>

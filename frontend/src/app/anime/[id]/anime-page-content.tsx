@@ -38,7 +38,6 @@ export function AnimePageContent({ animeId }: { animeId: string }) {
     selectSource,
     selectPlayback,
     changeStatus,
-    changeProgress,
     addToLibrary,
   } = workspace;
 
@@ -99,7 +98,6 @@ export function AnimePageContent({ animeId }: { animeId: string }) {
             progress={libraryEntry?.progress_episode ?? 0}
             totalEpisodes={anime.total_episodes}
             onStatusChange={(status) => void changeStatus(status)}
-            onProgressChange={(progress) => void changeProgress(progress)}
           />
         ) : null}
 
@@ -121,7 +119,6 @@ export function AnimePageContent({ animeId }: { animeId: string }) {
               src={currentOption.url}
               headers={currentOption.headers}
               title={currentOption.source_title}
-              officialUrl={currentOption.official_url ?? undefined}
             />
           ) : (
             <div className="flex aspect-video w-full items-center justify-center rounded-control bg-surface-muted">

@@ -245,7 +245,8 @@ class AniLibertyAdapter(AnicliSourceAdapter):
             for genre in (data.get("genres") or [])
             if isinstance(genre, dict) and genre.get("name")
         )
-        poster_url = absolute_url(poster.get("thumbnail") or poster.get("preview"))
+        # Use "src" for high-resolution original image, fallback to preview/thumbnail
+        poster_url = absolute_url(poster.get("src") or poster.get("preview") or poster.get("thumbnail"))
         if poster_url:
             poster_url = (
                 f"{self.BASE_URL}{poster_url}" if poster_url.startswith("/") else poster_url
@@ -290,7 +291,8 @@ class AniLibertyAdapter(AnicliSourceAdapter):
         data = result.value
         name = dig(data, "name", default={}) or {}
         poster = dig(data, "poster", default={}) or {}
-        poster_url = absolute_url(poster.get("thumbnail") or poster.get("preview"))
+        # Use "src" for high-resolution original image, fallback to preview/thumbnail
+        poster_url = absolute_url(poster.get("src") or poster.get("preview") or poster.get("thumbnail"))
         if poster_url and poster_url.startswith("/"):
             poster_url = f"{self.BASE_URL}{poster_url}"
         anime_class = self._anime_class()

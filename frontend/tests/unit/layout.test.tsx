@@ -119,13 +119,11 @@ describe("LibraryControls", () => {
         progress={3}
         totalEpisodes={26}
         onStatusChange={() => {}}
-        onProgressChange={() => {}}
       />,
     );
 
     expect(screen.getByRole("button", { name: "Смотрю" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Прогресс:")).toHaveValue(3);
-    expect(screen.getByText("/ 26")).toBeInTheDocument();
+    expect(screen.getByText("Прогресс: 3 / 26")).toBeInTheDocument();
   });
 
   it("reports a status change", async () => {
@@ -136,33 +134,13 @@ describe("LibraryControls", () => {
       <LibraryControls
         status="watching"
         progress={3}
+        totalEpisodes={26}
         onStatusChange={onStatusChange}
-        onProgressChange={() => {}}
       />,
     );
 
     await user.click(screen.getByRole("button", { name: "Просмотрено" }));
 
     expect(onStatusChange).toHaveBeenCalledWith("completed");
-  });
-
-  it("ignores an invalid progress", async () => {
-    const user = userEvent.setup();
-    const onProgressChange = vi.fn();
-
-    render(
-      <LibraryControls
-        status="watching"
-        progress={3}
-        onStatusChange={() => {}}
-        onProgressChange={onProgressChange}
-      />,
-    );
-
-    const input = screen.getByLabelText("Прогресс:");
-    await user.clear(input);
-    await user.type(input, "-4");
-
-    expect(onProgressChange).not.toHaveBeenCalledWith(-4);
   });
 });

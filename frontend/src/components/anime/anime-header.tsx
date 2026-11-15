@@ -29,8 +29,8 @@ export function AnimeHeader({
   const description = anime.description ?? null;
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:gap-6">
-      <div className="w-full shrink-0 sm:w-[140px]">
+    <div className="flex flex-row gap-4 sm:gap-6">
+      <div className="shrink-0 w-[112px] sm:w-[140px]">
         {/* The container has to be positioned, otherwise the absolutely
             positioned image covers the whole page. */}
         <div className="relative aspect-[2/3] overflow-hidden rounded-control bg-surface-muted">
@@ -55,6 +55,7 @@ export function AnimeHeader({
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
+            <Badge tone="accent" className="font-medium">{anime.provider}</Badge>
             {anime.year ? <Badge>{anime.year}</Badge> : null}
             {anime.release_status && anime.release_status !== "unknown" ? (
               <Badge

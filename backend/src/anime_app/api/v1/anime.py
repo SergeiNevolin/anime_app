@@ -24,12 +24,13 @@ async def search_anime(
     user: CurrentUser,
     limiter: Annotated[RateLimiter, Depends(get_search_rate_limiter)],
     query: Annotated[str, Query(min_length=2, max_length=128, description="Search term")],
+    provider: Annotated[str | None, Query(description="Filter by provider ID")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> Page[AnimeSummary]:
     """Search the catalogue of every enabled provider."""
     await limiter.check(str(user.telegram_id), scope="search")
-    return await service.search(query, PageParams(page=page, page_size=page_size))
+    return await service.search(query, PageParams(page=page, page_size=page_size), provider=provider)
 
 
 @router.get("/{anime_id}", response_model=AnimeDetails, summary="Return the details of an anime")

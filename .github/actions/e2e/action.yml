@@ -1,0 +1,31 @@
+name: "E2E Tests"
+description: "Run Playwright E2E tests with backend API"
+inputs:
+  playwright-version:
+    description: "Playwright version to install"
+    required: false
+    default: "1.65.1"
+runs:
+  using: "composite"
+  steps:
+    - name: Install Playwright
+      run: |
+        cd ${{ github.workspace }}/frontend
+        npx playwright install --with-deps chromium
+      shell: bash
+
+    - name: Start backend API
+      run: |
+        cd ${{ github.workspace }}/backend
+        uv run --env-file .env.e2e uvicorn anime_app.main:app --port 8000 &
+        sleep 5
+        curl -fsS http://localhost:8000/health/live || exit 1
+      shell: bash
+
+    - name: Run E2E Tests
+      run: |
+        cd ${{ github.workspace }}/frontend
+        pnpm e2e
+      shell: bash
+      env:
+        PLAYWRIGHT_BASE_URL: http://localhost:3000

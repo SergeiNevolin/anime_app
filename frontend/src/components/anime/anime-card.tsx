@@ -40,6 +40,7 @@ export function AnimeCard({ anime }: { anime: AnimeSummary }) {
           </p>
         ) : null}
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <Badge tone="accent" className="font-medium">{anime.provider}</Badge>
           {anime.year ? <Badge>{anime.year}</Badge> : null}
           {anime.release_status && anime.release_status !== "unknown" ? (
             <Badge>{formatReleaseStatus(anime.release_status)}</Badge>

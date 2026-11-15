@@ -39,7 +39,7 @@ export async function fetchCurrentUser(
 
 export async function searchAnime(
   query: string,
-  params: { page?: number; pageSize?: number } = {},
+  params: { page?: number; pageSize?: number; provider?: string } = {},
   options?: RequestOptions,
 ): Promise<{ items: AnimeSummary[]; page: number; pageSize: number; total: number | null; hasMore: boolean }> {
   const payload = await apiRequest<unknown>("/anime/search", {
@@ -48,6 +48,7 @@ export async function searchAnime(
       query,
       page: params.page ?? 1,
       page_size: params.pageSize ?? 20,
+      provider: params.provider,
     },
   });
   const parsed = animeSummaryPageSchema.parse(payload);

@@ -12,10 +12,12 @@ const mocks = vi.hoisted(() => ({
   useCurrentUser: vi.fn(),
   updateLibraryEntry: vi.fn(),
   removeFromLibrary: vi.fn(),
+  useProviders: vi.fn(),
 }));
 
 vi.mock("@/features/search/hooks", () => ({
   useAnimeSearch: mocks.useAnimeSearch,
+  useProviders: mocks.useProviders,
 }));
 
 vi.mock("@/features/library/hooks", () => ({
@@ -80,6 +82,10 @@ describe("HomePage", () => {
       refetch: vi.fn(),
     });
     mocks.useContinueWatching.mockReturnValue({
+      data: [],
+      isPending: false,
+    });
+    mocks.useProviders.mockReturnValue({
       data: [],
       isPending: false,
     });

@@ -71,12 +71,13 @@ class AnimeService:
 
     # -- search -----------------------------------------------------------
 
-    async def search(self, query: str, params: PageParams) -> Page[AnimeSummary]:
+    async def search(self, query: str, params: PageParams, provider: str | None = None) -> Page[AnimeSummary]:
         """Search for anime across every enabled catalog provider.
 
         Args:
             query: The search term.
             params: Pagination parameters.
+            provider: Optional provider ID to filter results.
 
         Returns:
             A page of search results.
@@ -90,7 +91,7 @@ class AnimeService:
         if len(cleaned) > MAX_QUERY_LENGTH:
             raise ValidationError(f"the query must not exceed {MAX_QUERY_LENGTH} characters")
 
-        cache_key = f"search:{normalize_title(cleaned)}:{params.page}:{params.page_size}"
+        cache_key = f"search:{normalize_title(cleaned)}:{provider or 'all'}:{params.page}:{params.page_size}"
         cached = await self._cache.get(cache_key)
         if cached:
             try:
@@ -106,7 +107,7 @@ class AnimeService:
                 )
 
         wanted = min(params.offset + params.page_size, self._search_limit)
-        results = await self._search_all(cleaned, wanted)
+        results = await self._search_all(cleaned, wanted, provider)
 
         merged = self._merge(results)
         window = merged[params.offset : params.offset + params.page_size]
@@ -130,9 +131,11 @@ class AnimeService:
             total=None,
         )
 
-    async def _search_all(self, query: str, limit: int) -> list[AnimeSummary]:
+    async def _search_all(self, query: str, limit: int, provider: str | None = None) -> list[AnimeSummary]:
         """Query every enabled provider in parallel and collect the results."""
         providers = self._registry.catalog_providers()
+        if provider:
+            providers = [p for p in providers if p.provider_id == provider]
         if not providers:
             return []
         outcomes = await asyncio.gather(

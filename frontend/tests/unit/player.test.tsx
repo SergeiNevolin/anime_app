@@ -103,29 +103,6 @@ describe("VideoPlayer", () => {
     expect(screen.queryByText(/Ошибка воспроизведения/)).not.toBeInTheDocument();
   });
 
-  it("offers the official page when the stream fails", async () => {
-    render(
-      <VideoPlayer
-        src="https://example.org/master.m3u8"
-        officialUrl="https://example.org/watch"
-      />,
-    );
-
-    await waitFor(() => expect(hlsMock.on).toHaveBeenCalled());
-
-    const errorHandler = hlsMock.on.mock.calls.find(
-      (call) => call[0] === "error",
-    )?.[1] as ((event: unknown, data: unknown) => void) | undefined;
-
-    errorHandler?.({}, { fatal: true, type: "mediaError" });
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("link", { name: /Открыть на сайте источника/ }),
-      ).toHaveAttribute("href", "https://example.org/watch");
-    });
-  });
-
   it("reports that the browser does not support HLS", async () => {
     hlsMock.isSupported.mockReturnValue(false);
     const playType = vi
