@@ -280,7 +280,7 @@ jobs:
 
       - name: Pull images
         run: |
-          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml pull api web
 
       - name: Stop existing containers
         run: |
