@@ -45,6 +45,7 @@ services:
     restart: always
     environment:
       NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://watch.awebm.cc/api/v1
     deploy:
       resources:
         limits:
