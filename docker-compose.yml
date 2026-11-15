@@ -8,12 +8,16 @@ x-backend-env: &backend-env
   DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anime}:${POSTGRES_PASSWORD:-anime}@postgres:5432/${POSTGRES_DB:-anime}
   REDIS_URL: redis://redis:6379/0
   TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-  TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-https://example.org}
+  TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-https://watch.awebm.cc}
   TELEGRAM_INIT_DATA_MAX_AGE: ${TELEGRAM_INIT_DATA_MAX_AGE:-86400}
   DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
-  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+  CORS_ORIGINS: ${CORS_ORIGINS:-https://watch.awebm.cc}
   ALLOWED_PROVIDERS: ${ALLOWED_PROVIDERS:-aniliberty,yummy_anime,animevost,animego}
   PROVIDER_TIMEOUT: ${PROVIDER_TIMEOUT:-20}
+
+x-proxy-env: &proxy-env
+  SITE_ADDRESS: ${SITE_ADDRESS:-watch.awebm.cc}
+  ACME_EMAIL: ${ACME_EMAIL:-admin@watch.awebm.cc}
 
 services:
   postgres:
@@ -104,6 +108,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment: *proxy-env
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

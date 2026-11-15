@@ -72,6 +72,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      SITE_ADDRESS: watch.awebm.cc
+      ACME_EMAIL: admin@watch.awebm.cc
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
