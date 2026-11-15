@@ -13,10 +13,22 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
-  IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
 
 jobs:
+  # Setup lowercase image names
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      image_backend: ${{ steps.lower.outputs.image_backend }}
+      image_frontend: ${{ steps.lower.outputs.image_frontend }}
+    steps:
+      - id: lower
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image_backend=ghcr.io/$owner/anime-app/backend" >> $GITHUB_OUTPUT
+          echo "image_frontend=ghcr.io/$owner/anime-app/frontend" >> $GITHUB_OUTPUT
+
   # =========================================================================
   # TESTS (run in parallel)
   # =========================================================================
@@ -146,7 +158,7 @@ jobs:
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests]
+    needs: [backend-tests, frontend-tests, setup]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     defaults:
       run:
@@ -163,7 +175,7 @@ jobs:
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -171,7 +183,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+          images: ${{ needs.setup.outputs.image_backend }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -195,7 +207,7 @@ jobs:
   build-frontend:
     name: Build Frontend Image
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests]
+    needs: [backend-tests, frontend-tests, setup]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     defaults:
       run:
@@ -212,7 +224,7 @@ jobs:
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -220,7 +232,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
+          images: ${{ needs.setup.outputs.image_frontend }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -250,25 +262,21 @@ jobs:
   deploy:
     name: Deploy to Self-Hosted Runner
     runs-on: self-hosted
-    needs: [build-backend, build-frontend]
+    needs: [build-backend, build-frontend, setup]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     environment: production
-    env:
-      REGISTRY: ghcr.io
-      IMAGE_NAME_BACKEND: ${{ github.repository }}/backend
-      IMAGE_NAME_FRONTEND: ${{ github.repository }}/frontend
     steps:
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull latest images
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:latest
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}:latest
+          docker pull ${{ needs.setup.outputs.image_backend }}:latest
+          docker pull ${{ needs.setup.outputs.image_frontend }}:latest
 
       - name: Stop existing containers
         run: |
