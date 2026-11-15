@@ -15,20 +15,6 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  # Setup lowercase image names
-  setup:
-    name: Setup
-    runs-on: ubuntu-latest
-    outputs:
-      image_backend: ${{ steps.lower.outputs.image_backend }}
-      image_frontend: ${{ steps.lower.outputs.image_frontend }}
-    steps:
-      - id: lower
-        run: |
-          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "image_backend=ghcr.io/$owner/anime-app/backend" >> $GITHUB_OUTPUT
-          echo "image_frontend=ghcr.io/$owner/anime-app/frontend" >> $GITHUB_OUTPUT
-
   # =========================================================================
   # TESTS (run in parallel)
   # =========================================================================
@@ -158,7 +144,7 @@ jobs:
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests, setup]
+    needs: [backend-tests, frontend-tests]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     defaults:
       run:
@@ -183,7 +169,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ needs.setup.outputs.image_backend }}
+          images: ghcr.io/${{ github.repository_owner }}/anime-app/backend
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -207,7 +193,7 @@ jobs:
   build-frontend:
     name: Build Frontend Image
     runs-on: ubuntu-latest
-    needs: [backend-tests, frontend-tests, setup]
+    needs: [backend-tests, frontend-tests]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     defaults:
       run:
@@ -232,7 +218,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ needs.setup.outputs.image_frontend }}
+          images: ghcr.io/${{ github.repository_owner }}/anime-app/frontend
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -262,7 +248,7 @@ jobs:
   deploy:
     name: Deploy to Production
     runs-on: self-hosted
-    needs: [build-backend, build-frontend, setup]
+    needs: [build-backend, build-frontend]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     environment: production
     permissions:
