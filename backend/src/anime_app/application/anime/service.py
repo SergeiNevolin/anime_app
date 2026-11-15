@@ -71,7 +71,9 @@ class AnimeService:
 
     # -- search -----------------------------------------------------------
 
-    async def search(self, query: str, params: PageParams, provider: str | None = None) -> Page[AnimeSummary]:
+    async def search(
+        self, query: str, params: PageParams, provider: str | None = None
+    ) -> Page[AnimeSummary]:
         """Search for anime across every enabled catalog provider.
 
         Args:
@@ -91,7 +93,10 @@ class AnimeService:
         if len(cleaned) > MAX_QUERY_LENGTH:
             raise ValidationError(f"the query must not exceed {MAX_QUERY_LENGTH} characters")
 
-        cache_key = f"search:{normalize_title(cleaned)}:{provider or 'all'}:{params.page}:{params.page_size}"
+        cache_key = (
+            f"search:{normalize_title(cleaned)}:{provider or 'all'}"
+            f":{params.page}:{params.page_size}"
+        )
         cached = await self._cache.get(cache_key)
         if cached:
             try:
@@ -131,23 +136,25 @@ class AnimeService:
             total=None,
         )
 
-    async def _search_all(self, query: str, limit: int, provider: str | None = None) -> list[AnimeSummary]:
+    async def _search_all(
+        self, query: str, limit: int, provider_filter: str | None = None
+    ) -> list[AnimeSummary]:
         """Query every enabled provider in parallel and collect the results."""
         providers = self._registry.catalog_providers()
-        if provider:
-            providers = [p for p in providers if p.provider_id == provider]
+        if provider_filter:
+            providers = [p for p in providers if p.provider_id == provider_filter]
         if not providers:
             return []
         outcomes = await asyncio.gather(
-            *(provider.search(query, limit=limit, offset=0) for provider in providers),
+            *(p.search(query, limit=limit, offset=0) for p in providers),
             return_exceptions=True,
         )
         collected: list[AnimeSummary] = []
-        for provider, outcome in zip(providers, outcomes, strict=True):
+        for prov, outcome in zip(providers, outcomes, strict=True):
             if isinstance(outcome, BaseException):
                 logger.warning(
                     "provider %s failed during search: %s",
-                    getattr(provider, "provider_id", "unknown"),
+                    getattr(prov, "provider_id", "unknown"),
                     outcome,
                 )
                 continue

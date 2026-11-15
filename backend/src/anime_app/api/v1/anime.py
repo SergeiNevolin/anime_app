@@ -30,7 +30,9 @@ async def search_anime(
 ) -> Page[AnimeSummary]:
     """Search the catalogue of every enabled provider."""
     await limiter.check(str(user.telegram_id), scope="search")
-    return await service.search(query, PageParams(page=page, page_size=page_size), provider=provider)
+    return await service.search(
+        query, PageParams(page=page, page_size=page_size), provider=provider
+    )
 
 
 @router.get("/{anime_id}", response_model=AnimeDetails, summary="Return the details of an anime")
