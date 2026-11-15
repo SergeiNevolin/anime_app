@@ -257,6 +257,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env file
+        run: |
+          echo "POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}" > .env
+          echo "TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -273,9 +278,6 @@ jobs:
           docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy down || true
 
       - name: Deploy with docker compose
-        env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
           docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy up -d --remove-orphans
 
