@@ -73,7 +73,7 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
-        NEXT_PUBLIC_DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
+        NEXT_PUBLIC_DEV_AUTH_ENABLED: ${NEXT_PUBLIC_DEV_AUTH_ENABLED:-false}
         NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID: ${DEV_AUTH_TELEGRAM_ID:-777000}
     restart: unless-stopped
     environment:
@@ -88,7 +88,9 @@ services:
   bot:
     build:
       context: ./backend
-    restart: unless-stopped
+    # The bot needs a token to start.  When it is missing the process exits
+    # with an error, the retries are limited to avoid a restart loop.
+    restart: on-failure:3
     command: ["python", "-m", "anime_app.bot.main"]
     environment: *backend-env
     depends_on:

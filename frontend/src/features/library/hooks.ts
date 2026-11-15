@@ -6,6 +6,7 @@ import {
   addToLibrary,
   fetchContinueWatching,
   fetchLibrary,
+  fetchLibraryEntry,
   removeFromLibrary,
   updateLibraryEntry,
 } from "@/lib/api/endpoints";
@@ -13,6 +14,22 @@ import type { LibraryStatus } from "@/lib/api/types";
 
 export const libraryQueryKey = ["library"] as const;
 export const continueWatchingQueryKey = ["library", "continue"] as const;
+
+/**
+ * Return the library entry of a single anime.
+ *
+ * A missing entry is not an error: the anime is simply not in the library
+ * yet, which is the normal state on the anime page.
+ */
+export function useLibraryEntry(animeId: string | null) {
+  return useQuery({
+    queryKey: [...libraryQueryKey, "entry", animeId],
+    queryFn: ({ signal }) => fetchLibraryEntry(animeId as string, { signal }),
+    enabled: Boolean(animeId),
+    retry: false,
+    staleTime: 30_000,
+  });
+}
 
 /** Return the personal library. */
 export function useLibrary(

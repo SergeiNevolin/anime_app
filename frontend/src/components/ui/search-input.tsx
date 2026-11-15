@@ -1,59 +1,47 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useId, type KeyboardEvent } from "react";
 
 import { cn } from "@/lib/utils/cn";
 
 interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
+  /** Called when the user presses Enter. */
+  onSubmit?: (value: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
   className?: string;
-  /** Delay in milliseconds before the change is reported. */
-  debounceMs?: number;
 }
 
 /**
- * A search field with a debounce.
+ * A controlled search field.
  *
- * The debounce keeps the request rate low while the user types.
+ * The component reports every keystroke immediately; the debouncing of the
+ * *request* is done by the caller with `useDebouncedValue`, so there is a
+ * single place that decides how often the backend is queried.
  */
 export function SearchInput({
   value,
   onChange,
+  onSubmit,
   placeholder = "Поиск аниме",
   autoFocus = false,
   className,
-  debounceMs = 350,
 }: SearchInputProps) {
-  const [local, setLocal] = useState(value);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const id = useId();
 
-  useEffect(() => {
-    setLocal(value);
-  }, [value]);
-
-  useEffect(
-    () => () => {
-      if (timer.current) {
-        clearTimeout(timer.current);
-      }
-    },
-    [],
-  );
-
-  const handleChange = (next: string) => {
-    setLocal(next);
-    if (timer.current) {
-      clearTimeout(timer.current);
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter" && onSubmit) {
+      event.preventDefault();
+      onSubmit(value);
     }
-    timer.current = setTimeout(() => onChange(next), debounceMs);
   };
 
   return (
     <div className={cn("relative", className)}>
       <input
+        id={id}
         type="search"
         inputMode="search"
         autoComplete="off"
@@ -61,9 +49,10 @@ export function SearchInput({
         spellCheck={false}
         aria-label={placeholder}
         placeholder={placeholder}
-        value={local}
+        value={value}
         autoFocus={autoFocus}
-        onChange={(event) => handleChange(event.target.value)}
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={handleKeyDown}
         className="h-10 w-full rounded-control border border-border bg-surface px-3 text-sm text-text placeholder:text-text-muted focus:border-accent focus:outline-none"
       />
     </div>

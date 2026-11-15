@@ -476,6 +476,48 @@
       }
     },
     "/api/v1/library/{anime_id}": {
+      "get": {
+        "tags": [
+          "library"
+        ],
+        "summary": "Return a single library entry",
+        "description": "Return the library entry of a single anime.\n\nThe route is declared after ``/continue`` so that the static path wins\nover the parameterised one.",
+        "operationId": "read_library_entry_api_v1_library__anime_id__get",
+        "parameters": [
+          {
+            "name": "anime_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Anime Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryItem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "library"

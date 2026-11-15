@@ -385,6 +385,28 @@ async def test_the_library_can_be_filtered_by_status(client, providers) -> None:
     assert response.json()["total"] == 1
 
 
+async def test_a_single_library_entry_is_returned(client, providers) -> None:
+    """The entry of a single anime can be requested."""
+    search = await client.get("/api/v1/anime/search", params={"query": "bebop"})
+    anime_id = search.json()["items"][0]["anime_id"]
+    await client.post("/api/v1/library", json={"anime_id": anime_id})
+
+    response = await client.get(f"/api/v1/library/{anime_id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["anime_id"] == anime_id
+    assert payload["status"] == "plan_to_watch"
+
+
+async def test_a_missing_library_entry_is_reported(client, providers) -> None:
+    """An anime that is not in the library is reported as not found."""
+    response = await client.get(f"/api/v1/library/{uuid.uuid4()}")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"
+
+
 async def test_the_continue_watching_list_is_returned(client, providers) -> None:
     """The titles in progress are returned."""
     search = await client.get("/api/v1/anime/search", params={"query": "bebop"})

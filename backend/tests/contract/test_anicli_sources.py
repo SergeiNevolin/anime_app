@@ -14,14 +14,14 @@ from anime_app.domain.anime.models import ReleaseStatus
 from anime_app.infrastructure.providers.anicli.sources import (
     AniLibertyAdapter,
     AnimeGoAdapter,
-    AnimeVostAdapter,
     AnimelibAdapter,
+    AnimeVostAdapter,
     YummyAnimeAdapter,
 )
 from tests.fixtures.anicli_payloads import (
     ANILIBERTY_RELEASE,
-    ANIMEVOST_ITEM,
     ANIMELIB_DETAIL,
+    ANIMEVOST_ITEM,
     YUMMY_ITEM,
 )
 
@@ -175,7 +175,14 @@ async def test_the_animevost_anime_is_loaded(http_client: Any, monkeypatch) -> N
             self.kwargs = kwargs
 
         async def a_search(self, query: str) -> list[FakeSearch]:
-            return [FakeSearch(ANIMEVOST_ITEM["title"], ANIMEVOST_ITEM["urlImagePreview"], "_", ANIMEVOST_ITEM)]
+            return [
+                FakeSearch(
+                    ANIMEVOST_ITEM["title"],
+                    ANIMEVOST_ITEM["urlImagePreview"],
+                    "_",
+                    ANIMEVOST_ITEM,
+                )
+            ]
 
     monkeypatch.setattr(animevost, "Extractor", FakeExtractor)
 

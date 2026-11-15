@@ -194,7 +194,7 @@ async def client(container: AppContainer, settings: Settings) -> AsyncIterator[h
     async def _boom() -> None:
         raise RuntimeError("unexpected failure")
 
-    transport = ASGITransport(app=application)
+    transport = ASGITransport(app=application, raise_app_exceptions=False)
     async with httpx.AsyncClient(
         transport=transport,
         base_url="http://testserver",

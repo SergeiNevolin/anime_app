@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "e2e": "playwright test",
+    "e2e:api": "cd ../backend && uv run --env-file .env.e2e uvicorn anime_app.main:app --port 8000",
     "e2e:install": "playwright install --with-deps chromium",
     "generate:api": "openapi-typescript ../backend/openapi.json -o src/types/api.d.ts"
   },

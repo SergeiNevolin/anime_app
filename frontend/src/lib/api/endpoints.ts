@@ -131,6 +131,14 @@ export async function fetchLibrary(
   };
 }
 
+export async function fetchLibraryEntry(
+  animeId: string,
+  options?: RequestOptions,
+): Promise<LibraryItem> {
+  const payload = await apiRequest<unknown>(`/library/${animeId}`, options);
+  return libraryItemSchema.parse(payload) as LibraryItem;
+}
+
 export async function fetchContinueWatching(
   options?: RequestOptions,
 ): Promise<LibraryItem[]> {

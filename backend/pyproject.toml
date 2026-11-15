@@ -133,6 +133,7 @@ ignore = [
 "src/anime_app/bot/**" = ["D"]
 "src/anime_app/api/**" = ["ARG001"]
 "src/anime_app/config.py" = ["S104"]
+"src/anime_app/infrastructure/providers/fixtures/**" = ["RUF001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"

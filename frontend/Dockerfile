@@ -3,10 +3,6 @@
 ###############################################################################
 # Frontend image: multi stage build using the Next.js standalone output.
 ###############################################################################
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_DEV_AUTH_ENABLED
-ARG NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID
-
 FROM node:22-bookworm-slim AS base
 
 ENV PNPM_HOME="/pnpm" \
@@ -20,43 +16,40 @@ WORKDIR /app
 ###############################################################################
 FROM base AS deps
 
-COPY package.json pnpm-lock.yaml ./
+# The lock file and the package manager configuration have to be copied before
+# the installation, so that the layout of node_modules is reproducible.
+COPY package.json pnpm-lock.yaml .npmrc ./
 RUN --mount=type=cache,target=/pnpm/store \
-    pnpm install --frozen-lockfile --prod --shamefully-hoist
+    pnpm install --frozen-lockfile
 
 ###############################################################################
 FROM deps AS builder
 
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_DEV_AUTH_ENABLED
-ARG NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID
-
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-    NEXT_PUBLIC_DEV_AUTH_ENABLED=$NEXT_PUBLIC_DEV_AUTH_ENABLED \
-    NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID=$NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID
+    NEXT_PUBLIC_DEV_AUTH_ENABLED=$NEXT_PUBLIC_DEV_AUTH_ENABLED
 
 COPY . .
-RUN npm run build
+
+# The build needs the development dependencies (typescript, tailwind, ...),
+# therefore every dependency is installed in this stage.  The runtime image
+# only receives the traced output of the standalone build.
+RUN pnpm build
 
 ###############################################################################
 FROM base AS runner
 
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_DEV_AUTH_ENABLED
-ARG NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID
-
 ENV NODE_ENV=production \
     PORT=3000 \
-    HOSTNAME=0.0.0.0 \
-    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-    NEXT_PUBLIC_DEV_AUTH_ENABLED=$NEXT_PUBLIC_DEV_AUTH_ENABLED \
-    NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID=$NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID
+    HOSTNAME=0.0.0.0
 
 RUN groupadd --system --gid 1001 nodejs \
     && useradd --system --uid 1001 --gid nodejs --home-dir /app --shell /usr/sbin/nologin nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 

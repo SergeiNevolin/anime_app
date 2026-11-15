@@ -16,9 +16,9 @@ from aiogram.filters import Command, CommandStart
 from aiogram.types import (
     BotCommand,
     InlineKeyboardButton,
-    InlineKeyboardButtonWebAppInfo,
     InlineKeyboardMarkup,
     Message,
+    WebAppInfo,
 )
 
 from anime_app.config import Settings, get_settings
@@ -51,7 +51,7 @@ def build_dispatcher(webapp_url: str) -> Dispatcher:
             [
                 InlineKeyboardButton(
                     text="Открыть приложение",
-                    web_app=InlineKeyboardButtonWebAppInfo(url=webapp_url),
+                    web_app=WebAppInfo(url=webapp_url),
                 )
             ]
         ]
@@ -89,10 +89,10 @@ async def main() -> None:
     token = settings.telegram_token_value
     if not token:
         logger.error("TELEGRAM_BOT_TOKEN is not configured: the bot cannot start")
-        return
+        raise SystemExit(1)
     if not settings.telegram_webapp_url:
         logger.error("TELEGRAM_WEBAPP_URL is not configured: the bot cannot start")
-        return
+        raise SystemExit(1)
 
     bot = Bot(token=token, default=DefaultBotProperties(parse_mode=None))
     dispatcher = build_dispatcher(settings.telegram_webapp_url)

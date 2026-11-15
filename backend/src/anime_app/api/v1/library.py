@@ -43,6 +43,24 @@ async def read_continue_watching(
     return await service.continue_watching(user.id, limit=limit)
 
 
+@router.get(
+    "/{anime_id}",
+    response_model=LibraryItem,
+    summary="Return a single library entry",
+)
+async def read_library_entry(
+    anime_id: UUID,
+    service: LibraryServiceDep,
+    user: CurrentUser,
+) -> LibraryItem:
+    """Return the library entry of a single anime.
+
+    The route is declared after ``/continue`` so that the static path wins
+    over the parameterised one.
+    """
+    return await service.get_entry(user.id, anime_id)
+
+
 @router.post(
     "",
     response_model=LibraryItem,

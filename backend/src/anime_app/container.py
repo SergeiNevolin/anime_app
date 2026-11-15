@@ -33,9 +33,12 @@ from anime_app.infrastructure.providers.anicli.adapter import (
     DEFAULT_HEADERS,
     build_providers,
 )
+from anime_app.infrastructure.providers.fixtures.provider import FixtureProvider
 from anime_app.infrastructure.telegram.auth import DevAuthProvider, TelegramAuthProvider
 
-__all__ = ["AppContainer", "build_container"]
+__all__ = ["FIXTURE_PROVIDER_ID", "AppContainer", "build_container"]
+
+FIXTURE_PROVIDER_ID = FixtureProvider.provider_id
 
 logger = get_logger(__name__)
 
@@ -146,6 +149,25 @@ def _register_providers(
             notes=provider.notes,
         )
         registry.register(info, catalog=provider, playback=provider)
+
+    # The deterministic provider is registered only when it is explicitly
+    # allowed, which happens exclusively in the test environment.
+    if registry.is_allowed(FIXTURE_PROVIDER_ID):
+        fixture = FixtureProvider()
+        registry.register(
+            ProviderInfo(
+                id=fixture.provider_id,
+                name=fixture.display_name,
+                kind=ProviderKind.CATALOG,
+                enabled=True,
+                supports_search=True,
+                supports_episodes=True,
+                supports_playback=True,
+                notes=fixture.notes,
+            ),
+            catalog=fixture,
+            playback=fixture,
+        )
 
 
 def _build_auth_providers(settings: Settings) -> list[Any]:

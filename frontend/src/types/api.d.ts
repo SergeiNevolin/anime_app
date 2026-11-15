@@ -177,7 +177,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Return a single library entry
+         * @description Return the library entry of a single anime.
+         *
+         *     The route is declared after ``/continue`` so that the static path wins
+         *     over the parameterised one.
+         */
+        get: operations["read_library_entry_api_v1_library__anime_id__get"];
         put?: never;
         post?: never;
         /**
@@ -948,6 +955,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LibraryItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_library_entry_api_v1_library__anime_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                anime_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryItem"];
                 };
             };
             /** @description Validation Error */

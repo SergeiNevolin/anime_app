@@ -66,17 +66,17 @@ function buildHeaders(hasBody: boolean): HeadersInit {
   if (hasBody) {
     headers["Content-Type"] = "application/json";
   }
-  
-  // Use dev auth when enabled and no real initData
-  if (isDevAuthEnabled()) {
+
+  // The signature of Telegram always wins: it is the only credential the
+  // backend trusts.  The development credential is a fallback for the
+  // browser, and the backend refuses the scheme in production.
+  const initData = getInitData();
+  if (initData) {
+    headers.Authorization = `tma ${initData}`;
+  } else if (isDevAuthEnabled()) {
     headers.Authorization = `dev ${getDevAuthCredential()}`;
-  } else {
-    const initData = getInitData();
-    if (initData) {
-      headers.Authorization = `tma ${initData}`;
-    }
   }
-  
+
   return headers;
 }
 

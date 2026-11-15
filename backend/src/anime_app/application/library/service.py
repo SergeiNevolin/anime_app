@@ -110,6 +110,17 @@ class LibraryService:
         )
         return (await self._enrich([entry]))[0]
 
+    async def get_entry(self, user_id: UUID, anime_id: UUID) -> LibraryItem:
+        """Return a single library entry of a user.
+
+        Raises:
+            NotFoundError: if the entry does not exist.
+        """
+        entry = await self._library.get(user_id, anime_id)
+        if entry is None:
+            raise NotFoundError("the anime is not in the library")
+        return (await self._enrich([entry]))[0]
+
     async def delete(self, user_id: UUID, anime_id: UUID) -> None:
         """Remove an anime from the library of a user.
 
