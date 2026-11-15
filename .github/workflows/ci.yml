@@ -13,6 +13,34 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
+    services:
+      postgres:
+        image: postgres:16.4-alpine
+        env:
+          POSTGRES_USER: anime
+          POSTGRES_PASSWORD: anime
+          POSTGRES_DB: anime
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U anime -d anime"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7.4.1-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: postgresql+asyncpg://anime:anime@localhost:5432/anime
+      REDIS_URL: redis://localhost:6379/0
+      APP_ENV: development
+      LOG_LEVEL: INFO
     steps:
       - uses: actions/checkout@v4
 
@@ -36,8 +64,11 @@ jobs:
       - name: Run MyPy
         run: uv run mypy
 
-      - name: Run Tests
-        run: uv run pytest -v --cov=src/anime_app --cov-report=xml
+      - name: Run Unit & Contract Tests
+        run: uv run pytest -v tests/unit tests/contract --cov=src/anime_app --cov-report=xml
+
+      - name: Run Integration Tests
+        run: uv run pytest -v tests/integration --cov=src/anime_app --cov-report=xml --cov-append
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
@@ -54,17 +85,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "pnpm"
-
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
           version: "10.34.9"
           run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
