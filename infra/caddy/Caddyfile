@@ -7,8 +7,12 @@
 	email {$ACME_EMAIL:admin@example.org}
 }
 
-{$SITE_ADDRESS:localhost} {
+{$SITE_ADDRESS:localhost}, localhost {
 	encode zstd gzip
+
+	handle_path /health {
+		respond "OK" 200
+	}
 
 	handle_path /api/* {
 		reverse_proxy api:8000
