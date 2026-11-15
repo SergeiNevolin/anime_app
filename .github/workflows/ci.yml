@@ -259,8 +259,8 @@ jobs:
 
       - name: Create .env file
         run: |
-          echo "POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}" > .env
-          echo "TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
+          echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" > .env
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> .env
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
