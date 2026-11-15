@@ -266,18 +266,18 @@ jobs:
 
       - name: Pull images
         run: |
-          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml pull api web
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy pull api web
 
       - name: Stop existing containers
         run: |
-          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml down || true
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy down || true
 
       - name: Deploy with docker compose
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          docker compose -p --profile proxy anime-watch -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy up -d --remove-orphans
 
       # - name: Run migrations
       #   run: |
