@@ -260,38 +260,42 @@ jobs:
   # DEPLOY (run after build succeeds)
   # =========================================================================
   deploy:
-    name: Deploy to Self-Hosted Runner
-    runs-on: self-hosted
+    name: Deploy to Production
+    runs-on: prod-runner
     needs: [build-backend, build-frontend, setup]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     environment: production
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Log in to Container Registry
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Pull latest images
+      - name: Pull images
         run: |
-          docker pull ${{ needs.setup.outputs.image_backend }}:latest
-          docker pull ${{ needs.setup.outputs.image_frontend }}:latest
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml pull backend frontend
 
       - name: Stop existing containers
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml down || true
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml down || true
 
       - name: Deploy with docker compose
         env:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
 
       - name: Run migrations
         run: |
-          docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T migrate alembic upgrade head
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml exec -T migrate alembic upgrade head
 
       - name: Health check
         run: |
