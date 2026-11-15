@@ -41,7 +41,7 @@ RUN pnpm build
 FROM base AS runner
 
 ENV NODE_ENV=production \
-    PORT=3000 \
+    PORT=3010 \
     HOSTNAME=0.0.0.0
 
 RUN groupadd --system --gid 1001 nodejs \
@@ -53,9 +53,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 3010
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+    CMD node -e "fetch('http://127.0.0.1:3010/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "server.js"]
