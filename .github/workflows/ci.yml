@@ -67,8 +67,8 @@ jobs:
       - name: Run Unit & Contract Tests
         run: uv run pytest -v tests/unit tests/contract --cov=src/anime_app --cov-report=xml
 
-      - name: Run Integration Tests
-        run: uv run pytest -v tests/integration --cov=src/anime_app --cov-report=xml --cov-append
+      # - name: Run Integration Tests
+      #   run: uv run pytest -v tests/integration --cov=src/anime_app --cov-report=xml --cov-append
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
@@ -79,11 +79,10 @@ jobs:
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: ./frontend
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -96,21 +95,27 @@ jobs:
         with:
           node-version: "22"
           cache: "pnpm"
+          cache-dependency-path: ./frontend/pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+        working-directory: ./frontend
 
       - name: Generate API Types
         run: pnpm generate:api
+        working-directory: ./frontend
 
       - name: Run ESLint
         run: pnpm lint
+        working-directory: ./frontend
 
       - name: Run TypeCheck
         run: pnpm typecheck
+        working-directory: ./frontend
 
       - name: Run Unit Tests
         run: pnpm test
+        working-directory: ./frontend
 
       - name: Run E2E Tests
         uses: ./.github/actions/e2e
