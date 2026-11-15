@@ -115,15 +115,23 @@ def get_library_service(
 
 async def get_current_user(
     request: Request,
-    service: Annotated[AuthService, Depends(get_auth_service)],
+    session: Annotated[AsyncSession, Depends(get_session)],
 ) -> User:
-    """Authenticate the request and return the current user.
+    """Return the current user.
 
-    Raises:
-        AuthenticationError: when the credentials are missing or invalid.
+    Authentication is temporarily disabled: all requests are treated as a
+    single anonymous user.
     """
-    authorization = request.headers.get("Authorization")
-    return await service.authenticate(authorization)
+    container = get_container(request)
+    repo = container.user_repository(session)
+    user = await repo.get_or_create(
+        telegram_id=0,
+        username="anonymous",
+        first_name="Anonymous",
+        language_code="ru",
+    )
+    await repo.touch(user.id)
+    return user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
