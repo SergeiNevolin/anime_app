@@ -115,4 +115,15 @@ describe("theme helpers", () => {
       document.documentElement.style.getPropertyValue("--app-viewport-height"),
     ).toBe("800px");
   });
+
+  it("drops the height outside of Telegram", () => {
+    delete (window as unknown as { Telegram?: unknown }).Telegram;
+    document.documentElement.style.setProperty("--app-viewport-height", "500px");
+
+    applyViewportHeight();
+
+    expect(
+      document.documentElement.style.getPropertyValue("--app-viewport-height"),
+    ).toBe("");
+  });
 });

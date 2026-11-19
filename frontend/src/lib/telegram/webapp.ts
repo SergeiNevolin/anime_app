@@ -51,9 +51,13 @@ export interface TelegramWebApp {
   readonly colorScheme: TelegramColorScheme;
   readonly themeParams: TelegramThemeParams;
   readonly isExpanded: boolean;
+  readonly isFullscreen?: boolean;
   readonly viewportHeight: number;
   readonly viewportStableHeight: number;
   readonly colorSchemeAvailable: boolean;
+  isVersionAtLeast?(version: string): boolean;
+  requestFullscreen?(): void;
+  exitFullscreen?(): void;
   ready(): void;
   expand(): void;
   close(): void;
@@ -129,9 +133,13 @@ function createDevelopmentWebApp(): TelegramWebApp {
     colorScheme: "light",
     themeParams: {},
     isExpanded: false,
+    isFullscreen: false,
     viewportHeight: 844,
     viewportStableHeight: 844,
     colorSchemeAvailable: true,
+    isVersionAtLeast: () => false,
+    requestFullscreen: noop,
+    exitFullscreen: noop,
     ready: noop,
     expand: noop,
     close: noop,
@@ -235,6 +243,73 @@ export function onTelegramEvent(
   const webApp = getTelegram();
   webApp.onEvent(event, handler);
   return () => webApp.offEvent(event, handler);
+}
+
+/**
+ * Compare two Bot API versions such as `"8.0"` or `"7.10.1"`.
+ */
+function versionAtLeast(version: string, minimum: string): boolean {
+  const parse = (value: string): number[] =>
+    value.split(".").map((part) => Number.parseInt(part, 10) || 0);
+  const current = parse(version);
+  const required = parse(minimum);
+  const length = Math.max(current.length, required.length);
+  for (let index = 0; index < length; index += 1) {
+    const left = current[index] ?? 0;
+    const right = required[index] ?? 0;
+    if (left !== right) {
+      return left > right;
+    }
+  }
+  return true;
+}
+
+/**
+ * Whether the client can open the Mini App in fullscreen mode (Bot API 8.0+).
+ *
+ * Older clients keep the Telegram chrome on screen: the player falls back to
+ * its own overlay there.
+ */
+export function canRequestTelegramFullscreen(): boolean {
+  const webApp = readTelegramWebApp();
+  if (!webApp || typeof webApp.requestFullscreen !== "function") {
+    return false;
+  }
+  if (typeof webApp.isVersionAtLeast === "function") {
+    return webApp.isVersionAtLeast("8.0");
+  }
+  return versionAtLeast(webApp.version ?? "", "8.0");
+}
+
+/**
+ * Ask Telegram to hide its header and open the Mini App fullscreen.
+ *
+ * Returns whether the request was sent; the result itself is reported by the
+ * `fullscreenChanged` / `fullscreenFailed` events.
+ */
+export function requestTelegramFullscreen(): boolean {
+  if (!canRequestTelegramFullscreen()) {
+    return false;
+  }
+  try {
+    getTelegram().requestFullscreen?.();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Return the Mini App to its normal windowed mode. */
+export function exitTelegramFullscreen(): void {
+  const webApp = readTelegramWebApp();
+  if (!webApp || typeof webApp.exitFullscreen !== "function") {
+    return;
+  }
+  try {
+    webApp.exitFullscreen();
+  } catch {
+    // A client that cannot exit fullscreen ignores the request.
+  }
 }
 
 /**

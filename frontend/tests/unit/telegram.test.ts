@@ -1,10 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import {
+  canRequestTelegramFullscreen,
+  exitTelegramFullscreen,
   getInitData,
   getTelegram,
   isTelegramEnvironment,
   onTelegramEvent,
+  requestTelegramFullscreen,
 } from "@/lib/telegram/webapp";
 
 interface FakeWebApp {
@@ -14,6 +17,10 @@ interface FakeWebApp {
   onEvent: ReturnType<typeof vi.fn>;
   offEvent: ReturnType<typeof vi.fn>;
   BackButton: { show: ReturnType<typeof vi.fn>; hide: ReturnType<typeof vi.fn> };
+  version?: string;
+  isVersionAtLeast?: (version: string) => boolean;
+  requestFullscreen?: ReturnType<typeof vi.fn>;
+  exitFullscreen?: ReturnType<typeof vi.fn>;
 }
 
 function installFakeWebApp(initData = "auth_date=1&hash=abc"): FakeWebApp {
@@ -82,6 +89,47 @@ describe("Telegram integration layer", () => {
     unsubscribe();
 
     expect(fake.offEvent).toHaveBeenCalledWith("themeChanged", handler);
+  });
+
+  it("requests and exits the fullscreen mode on a supporting client", () => {
+    const fake = installFakeWebApp();
+    fake.version = "8.0";
+    fake.requestFullscreen = vi.fn();
+    fake.exitFullscreen = vi.fn();
+
+    expect(canRequestTelegramFullscreen()).toBe(true);
+    expect(requestTelegramFullscreen()).toBe(true);
+    expect(fake.requestFullscreen).toHaveBeenCalled();
+
+    exitTelegramFullscreen();
+
+    expect(fake.exitFullscreen).toHaveBeenCalled();
+  });
+
+  it("uses the version check of the client when it is available", () => {
+    const fake = installFakeWebApp();
+    const isVersionAtLeast = vi.fn((version: string) => version === "8.0");
+    fake.isVersionAtLeast = isVersionAtLeast;
+    fake.requestFullscreen = vi.fn();
+
+    expect(requestTelegramFullscreen()).toBe(true);
+    expect(isVersionAtLeast).toHaveBeenCalledWith("8.0");
+  });
+
+  it("does not request the fullscreen mode on an older client", () => {
+    const fake = installFakeWebApp();
+    fake.version = "7.10";
+    fake.requestFullscreen = vi.fn();
+
+    expect(canRequestTelegramFullscreen()).toBe(false);
+    expect(requestTelegramFullscreen()).toBe(false);
+    expect(fake.requestFullscreen).not.toHaveBeenCalled();
+  });
+
+  it("ignores the fullscreen requests outside of Telegram", () => {
+    expect(canRequestTelegramFullscreen()).toBe(false);
+    expect(requestTelegramFullscreen()).toBe(false);
+    expect(() => exitTelegramFullscreen()).not.toThrow();
   });
 
   it("supports the back button of the Telegram client", () => {

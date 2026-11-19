@@ -44,7 +44,10 @@ export function AppShell({
   }, [back, router]);
 
   return (
-    <div className={`flex min-h-dvh flex-col bg-bg ${className ?? ""}`}>
+    <div
+      className={`flex flex-col bg-bg ${className ?? ""}`}
+      style={{ minHeight: "var(--app-viewport-height, 100dvh)" }}
+    >
       <header className="sticky top-0 z-20 border-b border-border bg-header">
         <div className="mx-auto flex min-h-12 max-w-3xl items-center gap-2 px-4 py-2">
           {back ? (

@@ -3,6 +3,12 @@
 import Hls from "hls.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  exitTelegramFullscreen,
+  requestTelegramFullscreen,
+} from "@/lib/telegram/webapp";
+import { cn } from "@/lib/utils/cn";
+
 const FORWARDED_HEADERS = new Set([
   "referer",
   "referrer",
@@ -44,6 +50,11 @@ function isHlsSource(src: string): boolean {
  * every other format the browser can play natively.  A stream that cannot be
  * played is reported as an error and the official page of the source stays
  * available.
+ *
+ * The fullscreen button is the player's own: Telegram webviews either disable
+ * the fullscreen control of the native media controls or never report that
+ * they support it, so the player expands itself and asks the Mini App to hide
+ * the Telegram chrome when the client is new enough (Bot API 8.0+).
  */
 export function VideoPlayer({
   src,
@@ -60,6 +71,7 @@ export function VideoPlayer({
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const loadSource = useCallback(() => {
     const video = videoRef.current;
@@ -124,6 +136,38 @@ export function VideoPlayer({
     };
   }, [loadSource]);
 
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((value) => {
+      if (value) {
+        exitTelegramFullscreen();
+      } else {
+        requestTelegramFullscreen();
+      }
+      return !value;
+    });
+  }, []);
+
+  // Lock the page behind the overlay and leave fullscreen on Escape or on
+  // unmount, so the Telegram header is never left hidden.
+  useEffect(() => {
+    if (!isFullscreen) {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+      exitTelegramFullscreen();
+    };
+  }, [isFullscreen]);
+
   if (error) {
     return (
       <div
@@ -138,13 +182,22 @@ export function VideoPlayer({
 
   return (
     <div className={className} data-testid="video-player">
-      <div className="relative aspect-video w-full overflow-hidden rounded-control bg-black">
+      <div
+        className={cn(
+          "bg-black",
+          isFullscreen
+            ? "fixed inset-0 z-50 flex flex-col"
+            : "relative aspect-video w-full overflow-hidden rounded-control",
+        )}
+        data-testid="video-stage"
+        data-fullscreen={isFullscreen ? "true" : "false"}
+      >
         <video
           ref={videoRef}
           controls
           playsInline
           preload="metadata"
-          className="h-full w-full"
+          className={cn("h-full w-full", isFullscreen && "object-contain")}
           onCanPlay={() => setLoading(false)}
           onWaiting={() => setLoading(true)}
           onError={() => {
@@ -154,6 +207,16 @@ export function VideoPlayer({
         >
           <track kind="captions" />
         </video>
+        <button
+          type="button"
+          aria-label={
+            isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"
+          }
+          onClick={toggleFullscreen}
+          className="absolute right-2 top-2 z-10 flex h-9 w-9 items-center justify-center rounded-control bg-black/60 text-[15px] leading-none text-white"
+        >
+          <span aria-hidden="true">{isFullscreen ? "⤡" : "⤢"}</span>
+        </button>
         {loading ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <span className="rounded-control bg-black/60 px-3 py-1.5 text-[12px] text-white">

@@ -2,7 +2,13 @@
 
 import { useEffect, type ReactNode } from "react";
 
-import { getTelegram, onTelegramEvent, type TelegramThemeParams } from "@/lib/telegram/webapp";
+import {
+  getTelegram,
+  isTelegramEnvironment,
+  onTelegramEvent,
+  type TelegramThemeParams,
+} from "@/lib/telegram/webapp";
+
 
 /**
  * Translate the Telegram theme parameters into CSS variables.
@@ -25,16 +31,21 @@ export function applyTelegramTheme(theme: TelegramThemeParams): void {
 
 /**
  * Keep the layout in sync with the height of the Mini App viewport.
+ *
+ * Outside Telegram the variable is removed, so the layout falls back to `dvh`
+ * instead of the fictional height of the development stub.
  */
 export function applyViewportHeight(): void {
   if (typeof document === "undefined") {
     return;
   }
+  const root = document.documentElement;
+  if (!isTelegramEnvironment()) {
+    root.style.removeProperty("--app-viewport-height");
+    return;
+  }
   const webApp = getTelegram();
-  document.documentElement.style.setProperty(
-    "--app-viewport-height",
-    `${webApp.viewportHeight}px`,
-  );
+  root.style.setProperty("--app-viewport-height", `${webApp.viewportHeight}px`);
 }
 
 /**
