@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const hlsMock = vi.hoisted(() => ({
@@ -25,8 +25,18 @@ vi.mock("hls.js", () => {
 
 import {
   VideoPlayer,
+  formatTime,
   forwardableHeaders,
 } from "@/components/player/video-player";
+
+describe("formatTime", () => {
+  it("formats the playback position", () => {
+    expect(formatTime(0)).toBe("0:00");
+    expect(formatTime(65)).toBe("1:05");
+    expect(formatTime(3725)).toBe("1:02:05");
+    expect(formatTime(Number.NaN)).toBe("0:00");
+  });
+});
 
 describe("forwardableHeaders", () => {
   it("keeps only the headers a browser may send", () => {
@@ -124,6 +134,74 @@ describe("VideoPlayer", () => {
     );
 
     expect(screen.getByText("Озвучка AniLibria")).toBeInTheDocument();
+  });
+
+  it("uses its own controls instead of the native ones", () => {
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    const video = screen.getByTestId("video-stage").querySelector("video");
+    expect(video).not.toHaveAttribute("controls");
+    expect(screen.getByLabelText("Перемотка")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Воспроизвести" }),
+    ).toBeInTheDocument();
+  });
+
+  it("plays and pauses the video", async () => {
+    const play = vi
+      .spyOn(window.HTMLMediaElement.prototype, "play")
+      .mockResolvedValue(undefined);
+    const pause = vi
+      .spyOn(window.HTMLMediaElement.prototype, "pause")
+      .mockImplementation(() => undefined);
+    const user = userEvent.setup();
+
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    await user.click(screen.getByRole("button", { name: "Воспроизвести" }));
+    expect(play).toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Пауза" }));
+    expect(pause).toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Воспроизвести" }),
+    ).toBeInTheDocument();
+
+    play.mockRestore();
+    pause.mockRestore();
+  });
+
+  it("seeks to the chosen position and shows the duration", () => {
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    const video = screen
+      .getByTestId("video-stage")
+      .querySelector("video") as HTMLVideoElement;
+    let position = 0;
+    Object.defineProperty(video, "currentTime", {
+      configurable: true,
+      get: () => position,
+      set: (value: number) => {
+        position = value;
+      },
+    });
+    Object.defineProperty(video, "duration", {
+      configurable: true,
+      get: () => 120,
+    });
+    act(() => {
+      video.dispatchEvent(new Event("durationchange"));
+    });
+
+    const slider = screen.getByLabelText("Перемотка");
+    expect(slider).not.toBeDisabled();
+
+    fireEvent.change(slider, { target: { value: "30" } });
+
+    expect(position).toBe(30);
+    expect(screen.getByTestId("playback-time")).toHaveTextContent(
+      "0:30 / 2:00",
+    );
   });
 
   it("keeps the player usable with a keyboard", async () => {

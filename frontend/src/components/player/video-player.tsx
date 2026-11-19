@@ -60,6 +60,81 @@ function isHlsSource(src: string): boolean {
   return src.includes(".m3u8") || src.includes(".m3u");
 }
 
+/** Format a number of seconds as `m:ss` or `h:mm:ss`. */
+export function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "0:00";
+  }
+  const total = Math.floor(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = total % 60;
+  const secondsPart = String(rest).padStart(2, "0");
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${secondsPart}`;
+  }
+  return `${minutes}:${secondsPart}`;
+}
+
+function PlayIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor">
+      <path d="M8 5.5a1 1 0 0 1 1.52-.85l10.5 6.5a1 1 0 0 1 0 1.7l-10.5 6.5A1 1 0 0 1 8 18.5z" />
+    </svg>
+  );
+}
+
+function PauseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor">
+      <rect x="6.5" y="5" width="3.6" height="14" rx="1.3" />
+      <rect x="13.9" y="5" width="3.6" height="14" rx="1.3" />
+    </svg>
+  );
+}
+
+function FullscreenIcon({ exit = false }: { exit?: boolean }) {
+  const d = exit
+    ? "M4 9h5V4M20 9h-5V4M20 15h-5v5M4 15h5v5"
+    : "M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5";
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
+function RotateIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 12a8 8 0 0 1 13.66-5.66L20 8.7" />
+      <path d="M20 4v4.7h-4.7" />
+      <path d="M20 12a8 8 0 0 1-13.66 5.66L4 15.3" />
+      <path d="M4 20v-4.7h4.7" />
+    </svg>
+  );
+}
+
 /**
  * Ask the platform to lock the screen orientation.
  *
@@ -86,16 +161,15 @@ function unlockScreenOrientation(): void {
 }
 
 /**
- * A minimal video player.
+ * A minimalistic video player with its own controls.
  *
- * It supports HLS (through hls.js or the native support of the browser) and
- * every other format the browser can play natively.  A stream that cannot be
- * played is reported as an error and the official page of the source stays
- * available.
+ * The native media controls are not used: Telegram webviews disable or ignore
+ * their fullscreen button, and they cannot be styled.  The player supports HLS
+ * (through hls.js or the native support of the browser) and every other format
+ * the browser can play natively; a stream that cannot be played is reported as
+ * an error and the official page of the source stays available.
  *
- * Fullscreen is implemented by the player itself (Telegram webviews either
- * disable or ignore the fullscreen control of the native media controls).  On
- * a phone the stage opens in landscape: it first asks for the system
+ * On a phone the stage opens in landscape: it first asks for the system
  * orientation lock, and when the webview refuses the video is simply rotated,
  * so the result does not depend on the client.
  */
@@ -115,6 +189,9 @@ export function VideoPlayer({
   const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [isPortraitViewport, setIsPortraitViewport] = useState(false);
@@ -182,6 +259,37 @@ export function VideoPlayer({
     };
   }, [loadSource]);
 
+  // Follow the playback state of the element, so the controls stay correct
+  // when the video is paused by the system or reaches its end.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    const onTimeUpdate = (): void => setCurrentTime(video.currentTime || 0);
+    const onDurationChange = (): void =>
+      setDuration(Number.isFinite(video.duration) ? video.duration : 0);
+    const onPlay = (): void => setPlaying(true);
+    const onPause = (): void => setPlaying(false);
+    const onEnded = (): void => setPlaying(false);
+
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("durationchange", onDurationChange);
+    video.addEventListener("loadedmetadata", onDurationChange);
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("ended", onEnded);
+
+    return () => {
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("durationchange", onDurationChange);
+      video.removeEventListener("loadedmetadata", onDurationChange);
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("ended", onEnded);
+    };
+  }, []);
+
   // Track the shape of the viewport: a portrait phone needs the stage to be
   // rotated, a phone that is already horizontal does not.
   useEffect(() => {
@@ -194,6 +302,32 @@ export function VideoPlayer({
       window.removeEventListener("resize", update);
       window.removeEventListener("orientationchange", update);
     };
+  }, []);
+
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    if (playing) {
+      video.pause();
+      setPlaying(false);
+    } else {
+      const started = video.play();
+      if (started) {
+        void started.catch(() => setPlaying(false));
+      }
+      setPlaying(true);
+    }
+  }, [playing]);
+
+  const seek = useCallback((value: number) => {
+    const video = videoRef.current;
+    if (!video) {
+      return;
+    }
+    video.currentTime = value;
+    setCurrentTime(value);
   }, []);
 
   const enterFullscreen = useCallback(() => {
@@ -315,10 +449,10 @@ export function VideoPlayer({
         >
           <video
             ref={videoRef}
-            controls
             playsInline
             preload="metadata"
             className={cn("h-full w-full", isFullscreen && "object-contain")}
+            onClick={togglePlay}
             onCanPlay={() => setLoading(false)}
             onWaiting={() => setLoading(true)}
             onError={() => {
@@ -330,17 +464,57 @@ export function VideoPlayer({
           </video>
         </div>
 
-        <div className="absolute right-2 top-2 z-10 flex gap-1.5">
+        {loading ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="rounded-control bg-black/60 px-3 py-1.5 text-[12px] text-white">
+              Загрузка…
+            </span>
+          </div>
+        ) : null}
+
+        <div className="absolute inset-x-0 bottom-0 z-10 flex items-center gap-1 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-2 pb-2 pt-10 text-white">
+          <button
+            type="button"
+            aria-label={playing ? "Пауза" : "Воспроизвести"}
+            onClick={togglePlay}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
+          >
+            {playing ? <PauseIcon /> : <PlayIcon />}
+          </button>
+
+          <span
+            className="shrink-0 pl-0.5 text-[11px] font-medium tabular-nums text-white/90"
+            data-testid="playback-time"
+          >
+            {formatTime(currentTime)}
+            <span className="text-white/50"> / {formatTime(duration)}</span>
+          </span>
+
+          <div className="flex h-8 min-w-0 flex-1 items-center px-1.5">
+            <input
+              type="range"
+              aria-label="Перемотка"
+              min={0}
+              max={duration}
+              step={0.1}
+              value={Math.min(currentTime, duration)}
+              disabled={duration === 0}
+              onChange={(event) => seek(Number(event.target.value))}
+              className="h-1 w-full cursor-pointer accent-white disabled:cursor-default"
+            />
+          </div>
+
           <button
             type="button"
             aria-label={
               isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"
             }
             onClick={toggleFullscreen}
-            className="flex h-9 w-9 items-center justify-center rounded-control bg-black/60 text-[15px] leading-none text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
           >
-            <span aria-hidden="true">{isFullscreen ? "⤡" : "⤢"}</span>
+            <FullscreenIcon exit={isFullscreen} />
           </button>
+
           {isFullscreen ? (
             <button
               type="button"
@@ -350,20 +524,12 @@ export function VideoPlayer({
                   : "Повернуть горизонтально"
               }
               onClick={toggleOrientation}
-              className="flex h-9 w-9 items-center justify-center rounded-control bg-black/60 text-[15px] leading-none text-white"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
             >
-              <span aria-hidden="true">⟳</span>
+              <RotateIcon />
             </button>
           ) : null}
         </div>
-
-        {loading ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="rounded-control bg-black/60 px-3 py-1.5 text-[12px] text-white">
-              Загрузка…
-            </span>
-          </div>
-        ) : null}
       </div>
 
       {title ? (
