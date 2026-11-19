@@ -3,11 +3,11 @@
 import Hls from "hls.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  exitTelegramFullscreen,
-  requestTelegramFullscreen,
-} from "@/lib/telegram/webapp";
+import { requestTelegramFullscreen } from "@/lib/telegram/webapp";
 import { cn } from "@/lib/utils/cn";
+
+/** How long the controls stay on screen while a fullscreen video plays. */
+const CONTROLS_HIDE_DELAY = 3000;
 
 const FORWARDED_HEADERS = new Set([
   "referer",
@@ -172,6 +172,11 @@ function unlockScreenOrientation(): void {
  * On a phone the stage opens in landscape: it first asks for the system
  * orientation lock, and when the webview refuses the video is simply rotated,
  * so the result does not depend on the client.
+ *
+ * A Mini App cannot hide the system status bar: Telegram puts the fullscreen
+ * Mini App underneath it and reports its height through `safeAreaInset`.  The
+ * overlay therefore fills the whole screen and keeps its own controls and a
+ * scrim behind the system bar instead of trying to move the bar away.
  */
 export function VideoPlayer({
   src,
@@ -195,6 +200,8 @@ export function VideoPlayer({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [orientation, setOrientation] = useState<Orientation>("portrait");
   const [isPortraitViewport, setIsPortraitViewport] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const hideTimerRef = useRef<number | null>(null);
 
   const loadSource = useCallback(() => {
     const video = videoRef.current;
@@ -330,6 +337,50 @@ export function VideoPlayer({
     setCurrentTime(value);
   }, []);
 
+  /**
+   * The controls fade away while a fullscreen video plays, so the frame is
+   * never covered; any touch, pointer movement or paused state brings them
+   * back.
+   */
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current !== null) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    clearHideTimer();
+    if (!isFullscreen || !playing) {
+      return;
+    }
+    hideTimerRef.current = window.setTimeout(() => {
+      hideTimerRef.current = null;
+      setControlsVisible(false);
+    }, CONTROLS_HIDE_DELAY);
+  }, [clearHideTimer, isFullscreen, playing]);
+
+  useEffect(() => {
+    if (!isFullscreen || !playing) {
+      clearHideTimer();
+      setControlsVisible(true);
+      return;
+    }
+    revealControls();
+    return clearHideTimer;
+  }, [clearHideTimer, isFullscreen, playing, revealControls]);
+
+  const handleVideoClick = useCallback(() => {
+    // A tap on a bare fullscreen video only brings the controls back; the next
+    // tap pauses, as in any other player.
+    if (isFullscreen && !controlsVisible) {
+      revealControls();
+      return;
+    }
+    togglePlay();
+  }, [controlsVisible, isFullscreen, revealControls, togglePlay]);
+
   const enterFullscreen = useCallback(() => {
     setIsFullscreen(true);
     setOrientation("landscape");
@@ -348,7 +399,8 @@ export function VideoPlayer({
     setIsFullscreen(false);
     setOrientation("portrait");
     unlockScreenOrientation();
-    exitTelegramFullscreen();
+    // The app itself stays fullscreen: only the stage overlay is closed, so
+    // the Telegram header does not slide back over the page afterwards.
     if (typeof document !== "undefined" && document.fullscreenElement) {
       document.exitFullscreen().catch(() => undefined);
     }
@@ -395,7 +447,6 @@ export function VideoPlayer({
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("fullscreenchange", onFullscreenChange);
       unlockScreenOrientation();
-      exitTelegramFullscreen();
     };
   }, [isFullscreen]);
 
@@ -416,6 +467,100 @@ export function VideoPlayer({
   const rotated =
     isFullscreen && orientation === "landscape" && isPortraitViewport;
 
+  // The frame itself is turned by 90 degrees, so the device insets land on
+  // other sides of the rotated video: the bottom safe area becomes the left
+  // edge of the frame, the top one becomes the right edge.
+  const controlInsets = rotated
+    ? {
+        paddingBottom: "0.5rem",
+        paddingLeft:
+          "calc(0.5rem + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)))",
+        paddingRight:
+          "calc(0.5rem + var(--app-safe-area-top, env(safe-area-inset-top, 0px)))",
+      }
+    : {
+        paddingBottom:
+          "calc(0.5rem + var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px)))",
+        paddingLeft:
+          "calc(0.5rem + var(--app-safe-area-left, env(safe-area-inset-left, 0px)))",
+        paddingRight:
+          "calc(0.5rem + var(--app-safe-area-right, env(safe-area-inset-right, 0px)))",
+      };
+
+  // The controls are rendered inside the frame, so they follow the rotation
+  // and stay on the bottom edge of the video instead of the physical screen.
+  const controls = (
+    <div
+      data-testid="player-controls"
+      data-visible={controlsVisible ? "true" : "false"}
+      className={cn(
+        "absolute inset-x-0 bottom-0 z-10 flex items-center gap-1 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-2 pb-2 pt-10 text-white transition-opacity duration-200",
+        controlsVisible ? "opacity-100" : "pointer-events-none opacity-0",
+      )}
+      style={controlInsets}
+    >
+      <button
+        type="button"
+        aria-label={playing ? "Пауза" : "Воспроизвести"}
+        onClick={togglePlay}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
+      >
+        {playing ? <PauseIcon /> : <PlayIcon />}
+      </button>
+
+      <span
+        className="shrink-0 pl-0.5 text-[11px] font-medium tabular-nums text-white/90"
+        data-testid="playback-time"
+      >
+        {formatTime(currentTime)}
+        <span className="text-white/50"> / {formatTime(duration)}</span>
+      </span>
+
+      <div className="flex h-8 min-w-0 flex-1 items-center px-1.5">
+        <input
+          type="range"
+          aria-label="Перемотка"
+          min={0}
+          max={duration}
+          step={0.1}
+          value={Math.min(currentTime, duration)}
+          disabled={duration === 0}
+          onChange={(event) => {
+            seek(Number(event.target.value));
+            revealControls();
+          }}
+          className="h-1 w-full cursor-pointer accent-white disabled:cursor-default"
+        />
+      </div>
+
+      <button
+        type="button"
+        aria-label={
+          isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"
+        }
+        onClick={toggleFullscreen}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
+      >
+        <FullscreenIcon exit={isFullscreen} />
+      </button>
+
+      {isFullscreen ? (
+        <button
+          type="button"
+          aria-label={
+            orientation === "landscape"
+              ? "Повернуть вертикально"
+              : "Повернуть горизонтально"
+          }
+          onClick={toggleOrientation}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
+        >
+          <RotateIcon />
+        </button>
+      ) : null}
+    </div>
+  );
+
   return (
     <div className={className} data-testid="video-player">
       <div
@@ -429,9 +574,11 @@ export function VideoPlayer({
         data-testid="video-stage"
         data-fullscreen={isFullscreen ? "true" : "false"}
         data-orientation={isFullscreen ? orientation : "portrait"}
+        onPointerDown={revealControls}
+        onPointerMove={revealControls}
       >
         <div
-          className="flex h-full w-full items-center justify-center bg-black"
+          className="relative flex h-full w-full items-center justify-center bg-black"
           data-testid="video-frame"
           data-rotated={rotated ? "true" : "false"}
           style={
@@ -452,7 +599,7 @@ export function VideoPlayer({
             playsInline
             preload="metadata"
             className={cn("h-full w-full", isFullscreen && "object-contain")}
-            onClick={togglePlay}
+            onClick={handleVideoClick}
             onCanPlay={() => setLoading(false)}
             onWaiting={() => setLoading(true)}
             onError={() => {
@@ -462,7 +609,25 @@ export function VideoPlayer({
           >
             <track kind="captions" />
           </video>
+
+          {controls}
         </div>
+
+        {isFullscreen ? (
+          // The system bar of the phone stays drawn above the Mini App; a dark
+          // scrim keeps its icons readable over a bright frame.
+          <div
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/70 via-black/20 to-transparent transition-opacity duration-200",
+              controlsVisible ? "opacity-100" : "opacity-0",
+            )}
+            style={{
+              height:
+                "calc(var(--app-safe-area-top, env(safe-area-inset-top, 0px)) + 2rem)",
+            }}
+          />
+        ) : null}
 
         {loading ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -471,65 +636,6 @@ export function VideoPlayer({
             </span>
           </div>
         ) : null}
-
-        <div className="absolute inset-x-0 bottom-0 z-10 flex items-center gap-1 bg-gradient-to-t from-black/85 via-black/40 to-transparent px-2 pb-2 pt-10 text-white">
-          <button
-            type="button"
-            aria-label={playing ? "Пауза" : "Воспроизвести"}
-            onClick={togglePlay}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
-          >
-            {playing ? <PauseIcon /> : <PlayIcon />}
-          </button>
-
-          <span
-            className="shrink-0 pl-0.5 text-[11px] font-medium tabular-nums text-white/90"
-            data-testid="playback-time"
-          >
-            {formatTime(currentTime)}
-            <span className="text-white/50"> / {formatTime(duration)}</span>
-          </span>
-
-          <div className="flex h-8 min-w-0 flex-1 items-center px-1.5">
-            <input
-              type="range"
-              aria-label="Перемотка"
-              min={0}
-              max={duration}
-              step={0.1}
-              value={Math.min(currentTime, duration)}
-              disabled={duration === 0}
-              onChange={(event) => seek(Number(event.target.value))}
-              className="h-1 w-full cursor-pointer accent-white disabled:cursor-default"
-            />
-          </div>
-
-          <button
-            type="button"
-            aria-label={
-              isFullscreen ? "Выйти из полноэкранного режима" : "На весь экран"
-            }
-            onClick={toggleFullscreen}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
-          >
-            <FullscreenIcon exit={isFullscreen} />
-          </button>
-
-          {isFullscreen ? (
-            <button
-              type="button"
-              aria-label={
-                orientation === "landscape"
-                  ? "Повернуть вертикально"
-                  : "Повернуть горизонтально"
-              }
-              onClick={toggleOrientation}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white drop-shadow transition-colors duration-150 hover:bg-white/10 active:bg-white/20"
-            >
-              <RotateIcon />
-            </button>
-          ) : null}
-        </div>
       </div>
 
       {title ? (

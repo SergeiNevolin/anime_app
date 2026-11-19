@@ -274,6 +274,52 @@ describe("VideoPlayer", () => {
     Object.defineProperty(window, "innerHeight", { value: 768, configurable: true });
   });
 
+  it("keeps the controls inside the rotated frame", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, "innerWidth", { value: 390, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 844, configurable: true });
+
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    await user.click(screen.getByRole("button", { name: "На весь экран" }));
+
+    expect(screen.getByTestId("video-frame")).toContainElement(
+      screen.getByTestId("player-controls"),
+    );
+
+    Object.defineProperty(window, "innerWidth", { value: 1024, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 768, configurable: true });
+  });
+
+  it("hides the controls while a fullscreen video plays", () => {
+    vi.useFakeTimers();
+    const play = vi
+      .spyOn(window.HTMLMediaElement.prototype, "play")
+      .mockResolvedValue(undefined);
+
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "На весь экран" }));
+    fireEvent.click(screen.getByRole("button", { name: "Воспроизвести" }));
+
+    const controls = screen.getByTestId("player-controls");
+    expect(controls).toHaveAttribute("data-visible", "true");
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(controls).toHaveAttribute("data-visible", "false");
+
+    const video = screen
+      .getByTestId("video-stage")
+      .querySelector("video") as HTMLVideoElement;
+    fireEvent.click(video);
+    expect(controls).toHaveAttribute("data-visible", "true");
+
+    vi.useRealTimers();
+    play.mockRestore();
+  });
+
   it("leaves the fullscreen mode on Escape", async () => {
     const user = userEvent.setup();
     render(<VideoPlayer src="https://example.org/v.mp4" />);
