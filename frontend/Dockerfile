@@ -25,11 +25,8 @@ RUN --mount=type=cache,target=/pnpm/store \
 ###############################################################################
 FROM deps AS builder
 
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_DEV_AUTH_ENABLED
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-    NEXT_PUBLIC_DEV_AUTH_ENABLED=$NEXT_PUBLIC_DEV_AUTH_ENABLED
-
+# The public configuration is not baked into the bundle: it is read from the
+# container environment on every request (see src/app/layout.tsx).
 COPY . .
 
 # The build needs the development dependencies (typescript, tailwind, ...),

@@ -238,9 +238,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_PUBLIC_API_URL=https://watch.awebm.cc/api/v1
-            NEXT_PUBLIC_DEV_AUTH_ENABLED=false
 
   # =========================================================================
   # DEPLOY (run after build succeeds)
@@ -253,7 +250,12 @@ jobs:
     environment: production
     permissions:
       contents: read
-      packages: write
+      packages: read
+    # The images built by this run are tagged with the commit SHA, so the host
+    # pulls exactly the revision that passed the tests instead of re-tagging
+    # and rebuilding whatever `latest` happens to point at.
+    env:
+      IMAGE_TAG: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
 
@@ -271,7 +273,7 @@ jobs:
 
       - name: Pull images
         run: |
-          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy pull api web
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy pull migrate api web bot
 
       - name: Stop existing containers
         run: |
@@ -279,7 +281,7 @@ jobs:
 
       - name: Deploy with docker compose
         run: |
-          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy up -d --remove-orphans
+          docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml --profile proxy up -d --remove-orphans --pull always
 
       # - name: Run migrations
       #   run: |

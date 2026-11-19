@@ -7,10 +7,8 @@
  * documentation requires.
  */
 
+import { getRuntimeConfig } from "@/lib/runtime-config";
 import { getInitData, isDevAuthEnabled, getDevAuthCredential } from "@/lib/telegram/webapp";
-
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
 
 export interface ApiErrorPayload {
   code: string;
@@ -47,7 +45,7 @@ export interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = `${API_BASE_URL}${path}`;
+  const url = `${getRuntimeConfig().apiBaseUrl}${path}`;
   if (!query) {
     return url;
   }

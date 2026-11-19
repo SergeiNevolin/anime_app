@@ -1,23 +1,20 @@
 name: anime-watch
 
-x-backend-env: &backend-env
-  APP_ENV: ${APP_ENV:-production}
-  API_HOST: ${API_HOST:-0.0.0.0}
-  API_PORT: ${API_PORT:-8000}
-  LOG_LEVEL: ${LOG_LEVEL:-INFO}
-  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anime}:${POSTGRES_PASSWORD:-anime}@postgres:5432/${POSTGRES_DB:-anime}
-  REDIS_URL: redis://redis:6379/0
-  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
-  TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-https://watch.awebm.cc}
-  TELEGRAM_INIT_DATA_MAX_AGE: ${TELEGRAM_INIT_DATA_MAX_AGE:-86400}
-  DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
-  CORS_ORIGINS: ${CORS_ORIGINS:-https://watch.awebm.cc}
-  ALLOWED_PROVIDERS: ${ALLOWED_PROVIDERS:-aniliberty,yummy_anime,animevost,animego}
-  PROVIDER_TIMEOUT: ${PROVIDER_TIMEOUT:-20}
+# Every container declares the variables it actually reads, in one place, with
+# the same names as backend/src/anime_app/config.py.  There is no shared block,
+# so a value cannot leak into a service that does not need it.
+#
+# Values come from the shell or from .env; the defaults are the local
+# development ones, docker-compose.prod.yml overrides them for production.
 
-x-proxy-env: &proxy-env
-  SITE_ADDRESS: ${SITE_ADDRESS:-watch.awebm.cc}
-  ACME_EMAIL: ${ACME_EMAIL:-admin@watch.awebm.cc}
+# Application images are pulled from the registry only: the CI pipeline builds
+# them and tags each commit with its SHA, so IMAGE_TAG selects the exact
+# revision to run.  Local builds live in docker-compose.build.yml.
+x-backend-image: &backend-image
+  image: ${BACKEND_IMAGE:-ghcr.io/sergeinevolin/anime-app/backend}:${IMAGE_TAG:-latest}
+
+x-frontend-image: &frontend-image
+  image: ${FRONTEND_IMAGE:-ghcr.io/sergeinevolin/anime-app/frontend}:${IMAGE_TAG:-latest}
 
 services:
   postgres:
@@ -49,17 +46,30 @@ services:
       retries: 20
 
   migrate:
-    build:
-      context: ./backend
+    <<: *backend-image
     restart: "no"
     command: ["alembic", "upgrade", "head"]
-    environment: *backend-env
+    # Alembic reads the settings object, but the only value it uses is the
+    # database URL.
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anime}:${POSTGRES_PASSWORD:-anime}@postgres:5432/${POSTGRES_DB:-anime}
 
   api:
-    build:
-      context: ./backend
+    <<: *backend-image
     restart: unless-stopped
-    environment: *backend-env
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anime}:${POSTGRES_PASSWORD:-anime}@postgres:5432/${POSTGRES_DB:-anime}
+      REDIS_URL: redis://redis:6379/0
+      # Verifies the Telegram WebApp signature of every request.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
+      TELEGRAM_INIT_DATA_MAX_AGE: ${TELEGRAM_INIT_DATA_MAX_AGE:-86400}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://watch.awebm.cc}
+      ALLOWED_PROVIDERS: ${ALLOWED_PROVIDERS:-aniliberty,yummy_anime,animevost,animego}
+      PROVIDER_TIMEOUT: ${PROVIDER_TIMEOUT:-20}
+      # The API refuses the "dev" authorization scheme in production.
+      DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,15 +83,15 @@ services:
       - "${API_PORT:-8000}:8000"
 
   web:
-    build:
-      context: ./frontend
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-https://watch.awebm.cc/api/v1}
-        NEXT_PUBLIC_DEV_AUTH_ENABLED: ${NEXT_PUBLIC_DEV_AUTH_ENABLED:-false}
-        NEXT_PUBLIC_DEV_AUTH_TELEGRAM_ID: ${DEV_AUTH_TELEGRAM_ID:-777000}
+    <<: *frontend-image
     restart: unless-stopped
     environment:
       NODE_ENV: production
+      # Public API address as seen by the browser.  It is injected into the page
+      # on every request (src/app/layout.tsx), so it is not a build argument and
+      # changing it only needs a restart.
+      API_URL: ${API_URL:-http://localhost:8000/api/v1}
+      DEV_AUTH_ENABLED: ${DEV_AUTH_ENABLED:-false}
     depends_on:
       - api
     expose:
@@ -90,13 +100,16 @@ services:
       - "${WEB_PORT:-3000}:3000"
 
   bot:
-    build:
-      context: ./backend
+    <<: *backend-image
     # The bot needs a token to start.  When it is missing the process exits
     # with an error, the retries are limited to avoid a restart loop.
     restart: on-failure:3
     command: ["python", "-m", "anime_app.bot.main"]
-    environment: *backend-env
+    # The bot only opens the Mini App: it talks to Telegram and never to the
+    # API or the database.
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-https://watch.awebm.cc}
     depends_on:
       api:
         condition: service_started
@@ -108,7 +121,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    environment: *proxy-env
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-watch.awebm.cc}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@watch.awebm.cc}
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

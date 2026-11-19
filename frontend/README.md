@@ -58,11 +58,13 @@ pnpm generate:api     # перегенерация типов из backend/opena
 
 | Переменная | Назначение |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | публичный адрес backend API, например `http://localhost:8000/api/v1` |
-| `NEXT_PUBLIC_DEV_AUTH_ENABLED` | `true` — использовать dev-авторизацию вне Telegram |
+| `API_URL` | публичный адрес backend API, например `http://localhost:8000/api/v1` |
+| `DEV_AUTH_ENABLED` | `true` — использовать dev-авторизацию вне Telegram |
 
-`NEXT_PUBLIC_*` встраиваются в клиентский бандл на этапе сборки, поэтому их
-нужно задать **до** `pnpm build`.
+Значения читаются из окружения на каждом запросе: корневой layout встраивает их
+в HTML (`window.__ANIME_WATCH_CONFIG__`), а клиент берёт их оттуда. Поэтому в
+контейнере это обычные `environment`, а не build args: смена значения требует
+только перезапуска, но не пересборки образа.
 
 ## Аутентификация
 
@@ -71,7 +73,7 @@ pnpm generate:api     # перегенерация типов из backend/opena
 проверяет backend.
 
 Вне Telegram (в обычном браузере) используется dev-fallback: если
-`initData` пуст и включён `NEXT_PUBLIC_DEV_AUTH_ENABLED`, клиент отправляет
+`initData` пуст и включён `DEV_AUTH_ENABLED`, клиент отправляет
 `Authorization: dev dev`. Backend принимает эту схему только в
 непроизводственном окружении.
 

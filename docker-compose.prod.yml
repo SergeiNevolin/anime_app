@@ -26,9 +26,11 @@ services:
 
   migrate:
     restart: "no"
+    pull_policy: always
 
   api:
     restart: always
+    pull_policy: always
     deploy:
       resources:
         limits:
@@ -40,9 +42,10 @@ services:
 
   web:
     restart: always
+    pull_policy: always
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: https://watch.awebm.cc/api/v1
+      API_URL: ${API_URL:-https://watch.awebm.cc/api/v1}
     deploy:
       resources:
         limits:
@@ -54,6 +57,7 @@ services:
 
   bot:
     restart: always
+    pull_policy: always
     deploy:
       resources:
         limits:

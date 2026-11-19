@@ -1,0 +1,28 @@
+# Build overlay for docker-compose.yml.
+#
+# The base file references application images from the registry only, so that
+# `docker compose pull` always has something to pull and a deployment can never
+# silently rebuild images on the target host.  Use this overlay when images have
+# to be built from the working tree (local development, debugging a Dockerfile):
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# Built images are tagged with the same names the registry uses, so a later
+# `docker compose -f docker-compose.yml up -d` keeps running the local build.
+
+services:
+  migrate:
+    build:
+      context: ./backend
+
+  api:
+    build:
+      context: ./backend
+
+  bot:
+    build:
+      context: ./backend
+
+  web:
+    build:
+      context: ./frontend

@@ -7,6 +7,8 @@
  * controlled development implementation so that the UI stays usable.
  */
 
+import { getRuntimeConfig } from "@/lib/runtime-config";
+
 export type TelegramColorScheme = "light" | "dark";
 
 export interface TelegramThemeParams {
@@ -213,7 +215,7 @@ export function getInitData(): string {
  * Return whether dev authentication should be used.
  */
 export function isDevAuthEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_DEV_AUTH_ENABLED === "true";
+  return getRuntimeConfig().devAuthEnabled;
 }
 
 /**
