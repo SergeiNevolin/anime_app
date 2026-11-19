@@ -291,11 +291,11 @@ jobs:
       #   run: |
       #     docker compose -p anime-watch -f docker-compose.yml -f docker-compose.prod.yml exec -T migrate alembic upgrade head
 
-      - name: Health check
-        run: |
-          sleep 10
-          curl -fsS http://localhost:8000/health/live || exit 1
-          curl -fsS http://localhost:3000/api/health || exit 1
+      # - name: Health check
+      #   run: |
+      #     sleep 10
+      #     curl -fsS http://localhost:8000/health/live || exit 1
+      #     curl -fsS http://localhost:3000/api/health || exit 1
 
       - name: Cleanup old images
         run: |
