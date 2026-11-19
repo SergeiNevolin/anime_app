@@ -8,7 +8,6 @@ import { AnimeHeader } from "@/components/anime/anime-header";
 import { LibraryEntryRow } from "@/components/library/library-entry-row";
 import { ContinueWatchingList } from "@/components/library/continue-watching-list";
 import { PlaybackSelectors } from "@/components/player/playback-selectors";
-import { VideoPlayer } from "@/components/player/video-player";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -283,46 +282,6 @@ describe("ContinueWatchingList", () => {
 
     expect(screen.getByTestId("continue-list")).toBeInTheDocument();
     expect(screen.getByText("Ковбой Бибоп")).toBeInTheDocument();
-  });
-});
-
-describe("VideoPlayer", () => {
-  it("expands the player over the whole viewport", async () => {
-    const user = userEvent.setup();
-    render(<VideoPlayer src="https://example.org/video.mp4" />);
-
-    const stage = screen.getByTestId("video-stage");
-    expect(stage).toHaveAttribute("data-fullscreen", "false");
-
-    await user.click(screen.getByRole("button", { name: "На весь экран" }));
-
-    expect(stage).toHaveAttribute("data-fullscreen", "true");
-    expect(document.body.style.overflow).toBe("hidden");
-
-    await user.click(
-      screen.getByRole("button", { name: "Выйти из полноэкранного режима" }),
-    );
-
-    expect(stage).toHaveAttribute("data-fullscreen", "false");
-    expect(document.body.style.overflow).toBe("");
-  });
-
-  it("leaves the fullscreen mode on Escape", async () => {
-    const user = userEvent.setup();
-    render(<VideoPlayer src="https://example.org/video.mp4" />);
-
-    await user.click(screen.getByRole("button", { name: "На весь экран" }));
-    expect(screen.getByTestId("video-stage")).toHaveAttribute(
-      "data-fullscreen",
-      "true",
-    );
-
-    await user.keyboard("{Escape}");
-
-    expect(screen.getByTestId("video-stage")).toHaveAttribute(
-      "data-fullscreen",
-      "false",
-    );
   });
 });
 

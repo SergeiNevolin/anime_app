@@ -135,4 +135,82 @@ describe("VideoPlayer", () => {
 
     expect(video).toBeInTheDocument();
   });
+
+  it("opens fullscreen in landscape and switches the orientation", async () => {
+    const user = userEvent.setup();
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    const stage = screen.getByTestId("video-stage");
+    expect(stage).toHaveAttribute("data-fullscreen", "false");
+    expect(
+      screen.queryByRole("button", { name: "Повернуть вертикально" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "На весь экран" }));
+
+    expect(stage).toHaveAttribute("data-fullscreen", "true");
+    expect(stage).toHaveAttribute("data-orientation", "landscape");
+    expect(document.body.style.overflow).toBe("hidden");
+
+    await user.click(
+      screen.getByRole("button", { name: "Повернуть вертикально" }),
+    );
+    expect(stage).toHaveAttribute("data-orientation", "portrait");
+
+    await user.click(
+      screen.getByRole("button", { name: "Повернуть горизонтально" }),
+    );
+    expect(stage).toHaveAttribute("data-orientation", "landscape");
+
+    await user.click(
+      screen.getByRole("button", { name: "Выйти из полноэкранного режима" }),
+    );
+
+    expect(stage).toHaveAttribute("data-fullscreen", "false");
+    expect(stage).toHaveAttribute("data-orientation", "portrait");
+    expect(document.body.style.overflow).toBe("");
+  });
+
+  it("rotates the stage on a portrait screen", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, "innerWidth", { value: 390, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 844, configurable: true });
+
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    await user.click(screen.getByRole("button", { name: "На весь экран" }));
+
+    const frame = screen.getByTestId("video-frame");
+    expect(frame).toHaveAttribute("data-rotated", "true");
+    expect(frame.style.transform).toContain("rotate(90deg)");
+
+    await user.click(
+      screen.getByRole("button", { name: "Повернуть вертикально" }),
+    );
+    expect(screen.getByTestId("video-frame")).toHaveAttribute(
+      "data-rotated",
+      "false",
+    );
+
+    Object.defineProperty(window, "innerWidth", { value: 1024, configurable: true });
+    Object.defineProperty(window, "innerHeight", { value: 768, configurable: true });
+  });
+
+  it("leaves the fullscreen mode on Escape", async () => {
+    const user = userEvent.setup();
+    render(<VideoPlayer src="https://example.org/v.mp4" />);
+
+    await user.click(screen.getByRole("button", { name: "На весь экран" }));
+    expect(screen.getByTestId("video-stage")).toHaveAttribute(
+      "data-fullscreen",
+      "true",
+    );
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByTestId("video-stage")).toHaveAttribute(
+      "data-fullscreen",
+      "false",
+    );
+  });
 });
