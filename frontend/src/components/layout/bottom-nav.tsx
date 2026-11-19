@@ -23,7 +23,12 @@ export function BottomNav() {
     <nav
       aria-label="Основная навигация"
       className="fixed bottom-0 left-0 right-0 z-30 mx-auto max-w-3xl border-t border-border bg-surface"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{
+        paddingBottom:
+          "var(--app-safe-area-bottom, env(safe-area-inset-bottom, 0px))",
+        paddingLeft: "var(--app-safe-area-left, 0px)",
+        paddingRight: "var(--app-safe-area-right, 0px)",
+      }}
     >
       <ul className="mx-auto flex max-w-3xl items-stretch">
         {ITEMS.map((item) => {

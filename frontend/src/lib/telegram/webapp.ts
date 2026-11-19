@@ -28,6 +28,13 @@ export interface TelegramThemeParams {
   [key: string]: string | undefined;
 }
 
+export interface TelegramInset {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
 export interface TelegramUser {
   id: number;
   first_name?: string;
@@ -55,6 +62,10 @@ export interface TelegramWebApp {
   readonly viewportHeight: number;
   readonly viewportStableHeight: number;
   readonly colorSchemeAvailable: boolean;
+  /** Device safe area (notch, system bars). Bot API 8.0+. */
+  readonly safeAreaInset?: TelegramInset;
+  /** Area covered by the Telegram interface (header in fullscreen). Bot API 8.0+. */
+  readonly contentSafeAreaInset?: TelegramInset;
   isVersionAtLeast?(version: string): boolean;
   requestFullscreen?(): void;
   exitFullscreen?(): void;
@@ -94,6 +105,10 @@ type EventHandler = (...args: unknown[]) => void;
 const _EVENTS = {
   themeChanged: "themeChanged",
   viewportChanged: "viewportChanged",
+  safeAreaChanged: "safeAreaChanged",
+  contentSafeAreaChanged: "contentSafeAreaChanged",
+  fullscreenChanged: "fullscreenChanged",
+  fullscreenFailed: "fullscreenFailed",
   backButtonClicked: "backButtonClicked",
   mainButtonClicked: "mainButtonClicked",
   closed: "closed",
@@ -137,6 +152,8 @@ function createDevelopmentWebApp(): TelegramWebApp {
     viewportHeight: 844,
     viewportStableHeight: 844,
     colorSchemeAvailable: true,
+    safeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
+    contentSafeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
     isVersionAtLeast: () => false,
     requestFullscreen: noop,
     exitFullscreen: noop,

@@ -6,9 +6,11 @@ import {
   getTelegram,
   isTelegramEnvironment,
   onTelegramEvent,
+  requestTelegramFullscreen,
   type TelegramThemeParams,
 } from "@/lib/telegram/webapp";
 
+const SAFE_AREA_SIDES = ["top", "right", "bottom", "left"] as const;
 
 /**
  * Translate the Telegram theme parameters into CSS variables.
@@ -49,7 +51,61 @@ export function applyViewportHeight(): void {
 }
 
 /**
- * Initialise the Telegram Mini App and follow its theme and viewport.
+ * Publish the safe areas as CSS variables.
+ *
+ * In fullscreen mode the Telegram interface floats above the page, so the
+ * header has to step aside.  The two insets are different things and have to
+ * be summed up: `safeAreaInset` is the device (notch, system bars) and
+ * `contentSafeAreaInset` is the Telegram interface itself.
+ *
+ * The values are only written inside Telegram, so a regular browser keeps
+ * using the CSS `env(safe-area-inset-*)` fallback.
+ */
+export function applySafeAreas(): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const root = document.documentElement;
+  if (!isTelegramEnvironment()) {
+    for (const side of SAFE_AREA_SIDES) {
+      root.style.removeProperty(`--app-safe-area-${side}`);
+    }
+    return;
+  }
+
+  const webApp = getTelegram();
+  const device = webApp.safeAreaInset;
+  const content = webApp.contentSafeAreaInset;
+  for (const side of SAFE_AREA_SIDES) {
+    const inset = (device?.[side] ?? 0) + (content?.[side] ?? 0);
+    root.style.setProperty(`--app-safe-area-${side}`, `${inset}px`);
+  }
+}
+
+/**
+ * Give the transparent Telegram header a colour that matches the app, so the
+ * status bar and the system controls stay readable in fullscreen mode.
+ */
+function applyHeaderColor(): void {
+  const webApp = getTelegram();
+  if (typeof webApp.setHeaderColor !== "function") {
+    return;
+  }
+  const theme = webApp.themeParams ?? {};
+  const color = theme.header_bg_color || theme.bg_color;
+  if (!color) {
+    return;
+  }
+  try {
+    webApp.setHeaderColor(color);
+  } catch {
+    // An older client may reject the colour, the theme still applies.
+  }
+}
+
+/**
+ * Initialise the Telegram Mini App and follow its theme, viewport and safe
+ * areas.
  */
 export function TelegramProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -59,18 +115,36 @@ export function TelegramProvider({ children }: { children: ReactNode }) {
       webApp.expand();
     }
     applyTelegramTheme(webApp.themeParams ?? {});
+    applyHeaderColor();
     applyViewportHeight();
+    applySafeAreas();
+    // Expand only maximises the Mini App inside the Telegram frame; the app
+    // has to ask for fullscreen explicitly (Bot API 8.0+, no-op elsewhere).
+    requestTelegramFullscreen();
+
+    const refresh = (): void => {
+      applySafeAreas();
+      applyViewportHeight();
+    };
 
     const offTheme = onTelegramEvent("themeChanged", () => {
       applyTelegramTheme(getTelegram().themeParams ?? {});
+      applyHeaderColor();
     });
-    const offViewport = onTelegramEvent("viewportChanged", () => {
-      applyViewportHeight();
-    });
+    const offViewport = onTelegramEvent("viewportChanged", refresh);
+    const offSafeArea = onTelegramEvent("safeAreaChanged", refresh);
+    const offContentSafeArea = onTelegramEvent(
+      "contentSafeAreaChanged",
+      refresh,
+    );
+    const offFullscreen = onTelegramEvent("fullscreenChanged", refresh);
 
     return () => {
       offTheme();
       offViewport();
+      offSafeArea();
+      offContentSafeArea();
+      offFullscreen();
     };
   }, []);
 

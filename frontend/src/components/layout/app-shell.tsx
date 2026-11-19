@@ -48,8 +48,22 @@ export function AppShell({
       className={`flex flex-col bg-bg ${className ?? ""}`}
       style={{ minHeight: "var(--app-viewport-height, 100dvh)" }}
     >
-      <header className="sticky top-0 z-20 border-b border-border bg-header">
-        <div className="mx-auto flex min-h-12 max-w-3xl items-center gap-2 px-4 py-2">
+      {/* In fullscreen mode the Telegram interface floats above the page, so
+          the sticky header steps aside by the sum of the device and content
+          safe areas. */}
+      <header
+        className="sticky top-0 z-20 border-b border-border bg-header"
+        style={{
+          paddingTop: "var(--app-safe-area-top, env(safe-area-inset-top, 0px))",
+        }}
+      >
+        <div
+          className="mx-auto flex min-h-12 max-w-3xl items-center gap-2 px-4 py-2"
+          style={{
+            paddingLeft: "calc(1rem + var(--app-safe-area-left, 0px))",
+            paddingRight: "calc(1rem + var(--app-safe-area-right, 0px))",
+          }}
+        >
           {back ? (
             <button
               type="button"
@@ -73,7 +87,13 @@ export function AppShell({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-20 pt-3">
+      <main
+        className="mx-auto w-full max-w-3xl flex-1 px-4 pb-20 pt-3"
+        style={{
+          paddingLeft: "calc(1rem + var(--app-safe-area-left, 0px))",
+          paddingRight: "calc(1rem + var(--app-safe-area-right, 0px))",
+        }}
+      >
         {children}
       </main>
 
