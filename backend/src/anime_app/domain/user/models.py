@@ -8,7 +8,13 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-__all__ = ["AuthenticatedIdentity", "User"]
+__all__ = ["GUEST_TELEGRAM_ID", "AuthenticatedIdentity", "User"]
+
+#: Telegram identifier of the account used when the request carries no
+#: usable credentials.  Telegram identifiers are always positive, so the zero
+#: can never collide with a real user.
+#: TODO: remove the guest account, see ``api/dependencies.py:get_current_user``.
+GUEST_TELEGRAM_ID = 0
 
 
 @dataclass(frozen=True, slots=True)

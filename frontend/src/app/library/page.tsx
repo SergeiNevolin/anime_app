@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCurrentUser } from "@/features/auth/hooks";
+import { GUEST_TELEGRAM_ID, useCurrentUser } from "@/features/auth/hooks";
 import {
   useContinueWatching,
   useLibrary,
@@ -36,6 +36,7 @@ const STATUS_FILTERS: Array<{ value: LibraryStatus | null; label: string }> = [
  */
 export default function LibraryPage() {
   const { data: user } = useCurrentUser();
+  const isGuest = user?.telegram_id === GUEST_TELEGRAM_ID;
   const [status, setStatus] = useState<LibraryStatus | null>(null);
   const [page, setPage] = useState(1);
 
@@ -180,7 +181,7 @@ export default function LibraryPage() {
         </>
       )}
 
-      {!user ? (
+      {isGuest ? (
         <p className="mt-4 text-center text-[12px] text-text-muted">
           Войдите через Telegram, чтобы библиотека синхронизировалась между
           устройствами.

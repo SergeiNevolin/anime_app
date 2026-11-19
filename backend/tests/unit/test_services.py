@@ -97,6 +97,49 @@ async def test_auth_service_reuses_the_same_user() -> None:
     assert first.id == second.id
 
 
+async def test_optional_auth_returns_none_without_a_header() -> None:
+    """A request without an Authorization header is a guest."""
+    service = AuthService(FakeUserRepository(), [RecordingAuthProvider()])
+
+    assert await service.authenticate_optional(None) is None
+    assert await service.authenticate_optional("") is None
+
+
+async def test_optional_auth_returns_none_for_an_unknown_scheme() -> None:
+    """An unregistered scheme is ignored instead of failing the request."""
+    service = AuthService(FakeUserRepository(), [RecordingAuthProvider()])
+
+    assert await service.authenticate_optional("basic dXNlcjpwYXNz") is None
+
+
+async def test_optional_auth_returns_none_when_the_credential_is_rejected() -> None:
+    """A rejected credential falls back to the guest account."""
+
+    class RejectingProvider:
+        """A provider that refuses every credential."""
+
+        scheme = "test"
+
+        async def authenticate(self, credential: str) -> AuthenticatedIdentity:
+            raise AuthenticationError("invalid credential")
+
+    service = AuthService(FakeUserRepository(), [RejectingProvider()])
+
+    assert await service.authenticate_optional("test secret") is None
+
+
+async def test_optional_auth_identifies_the_user() -> None:
+    """A valid credential identifies the user."""
+    provider = RecordingAuthProvider(AuthenticatedIdentity(telegram_id=55, username="ivan"))
+    service = AuthService(FakeUserRepository(), [provider])
+
+    user = await service.authenticate_optional("test credential")
+
+    assert user is not None
+    assert user.telegram_id == 55
+    assert provider.credentials == ["credential"]
+
+
 # -- search ------------------------------------------------------------------
 
 

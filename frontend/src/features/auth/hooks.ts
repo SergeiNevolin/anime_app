@@ -7,10 +7,16 @@ import { fetchCurrentUser } from "@/lib/api/endpoints";
 export const currentUserQueryKey = ["auth", "me"] as const;
 
 /**
+ * Telegram identifier of the guest account created by the backend when the
+ * request carries no valid `initData`.
+ */
+export const GUEST_TELEGRAM_ID = 0;
+
+/**
  * Return the authenticated Telegram user.
  *
- * The user is created on the first request, so the query is retried once when
- * the very first call fails.
+ * The backend answers with the guest account (`telegram_id === 0`) when the
+ * application runs outside Telegram, so the query also succeeds there.
  */
 export function useCurrentUser() {
   return useQuery({

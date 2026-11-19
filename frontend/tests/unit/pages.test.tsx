@@ -36,6 +36,7 @@ vi.mock("@/features/library/hooks", () => ({
 }));
 
 vi.mock("@/features/auth/hooks", () => ({
+  GUEST_TELEGRAM_ID: 0,
   useCurrentUser: mocks.useCurrentUser,
 }));
 

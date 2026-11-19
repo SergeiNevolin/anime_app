@@ -150,25 +150,25 @@ async def test_the_current_user_is_returned(client) -> None:
     assert payload["username"] == "dev_user"
 
 
-async def test_a_missing_authorization_header_is_rejected(client) -> None:
-    """A request without credentials is rejected."""
+async def test_a_missing_authorization_header_is_served_as_a_guest(client) -> None:
+    """A request without credentials is served as the guest account."""
     response = await client.get("/api/v1/auth/me", headers={"Authorization": ""})
 
-    assert response.status_code == 401
-    error = response.json()["error"]
-    assert error["code"] == "UNAUTHORIZED"
-    assert error["request_id"]
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["telegram_id"] == 0
+    assert payload["username"] == "anonymous"
 
 
-async def test_an_invalid_init_data_is_rejected(client) -> None:
-    """A forged init data payload is rejected."""
+async def test_an_invalid_init_data_falls_back_to_the_guest(client) -> None:
+    """A forged init data payload does not identify the user, but is not fatal."""
     response = await client.get(
         "/api/v1/auth/me",
         headers={"Authorization": "tma auth_date=1&hash=deadbeef"},
     )
 
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "INVALID_INIT_DATA"
+    assert response.status_code == 200
+    assert response.json()["telegram_id"] == 0
 
 
 async def test_a_valid_init_data_creates_the_user(client) -> None:
@@ -233,15 +233,16 @@ async def test_the_search_requires_a_long_query(client, providers) -> None:
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
-async def test_the_search_requires_authentication(client, providers) -> None:
-    """The search requires an authenticated user."""
+async def test_the_search_is_available_to_a_guest(client, providers) -> None:
+    """The search works without credentials."""
     response = await client.get(
         "/api/v1/anime/search",
         params={"query": "bebop"},
         headers={"Authorization": ""},
     )
 
-    assert response.status_code == 401
+    assert response.status_code == 200
+    assert response.json()["items"][0]["title"] == "Ковбой Бибоп"
 
 
 async def test_the_search_paginates(client, providers) -> None:
@@ -337,6 +338,28 @@ async def test_the_library_is_empty_by_default(client, providers) -> None:
     payload = response.json()
     assert payload["items"] == []
     assert payload["total"] == 0
+
+
+async def test_the_library_of_the_guest_is_separate_from_the_user(
+    client, providers
+) -> None:
+    """A guest and an identified user do not share the library."""
+    init_data = build_init_data(
+        "123456789:AAHtestTokenForUnitTestsOnly0000000000",
+        {"id": 4242},
+    )
+    search = await client.get("/api/v1/anime/search", params={"query": "bebop"})
+    anime_id = search.json()["items"][0]["anime_id"]
+
+    await client.post("/api/v1/library", json={"anime_id": anime_id})
+    guest = await client.get("/api/v1/library")
+    identified = await client.get(
+        "/api/v1/library",
+        headers={"Authorization": f"tma {init_data}"},
+    )
+
+    assert guest.json()["total"] == 1
+    assert identified.json()["total"] == 0
 
 
 async def test_an_anime_is_added_to_the_library(client, providers) -> None:

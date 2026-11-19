@@ -19,7 +19,7 @@ from anime_app.application.playback.service import PlaybackService
 from anime_app.container import AppContainer
 from anime_app.core.ratelimit import RateLimiter
 from anime_app.domain.providers.registry import ProviderRegistry
-from anime_app.domain.user.models import User
+from anime_app.domain.user.models import GUEST_TELEGRAM_ID, User
 
 __all__ = [
     "get_anime_service",
@@ -117,21 +117,32 @@ async def get_current_user(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> User:
-    """Return the current user.
+    """Return the authenticated user, or the shared guest account.
 
-    Authentication is temporarily disabled: all requests are treated as a
-    single anonymous user.
+    The ``Authorization`` header is optional.  A valid Telegram ``initData``
+    identifies the user; a request without credentials (or with a credential
+    that cannot be used) is served as the guest, so the application stays
+    usable outside Telegram.
     """
     container = get_container(request)
+    authorization = request.headers.get("Authorization")
+    user = await container.auth_service(session).authenticate_optional(authorization)
+    if user is not None:
+        return user
+
+    # TODO: drop the shared guest account.  Every anonymous visitor is served
+    # from the same ``users`` row, so guests see and modify each other's
+    # library.  Replace it with a per-device guest identity (signed cookie) or
+    # keep the guest data out of the database entirely.
     repo = container.user_repository(session)
-    user = await repo.get_or_create(
-        telegram_id=0,
+    guest = await repo.get_or_create(
+        telegram_id=GUEST_TELEGRAM_ID,
         username="anonymous",
         first_name="Anonymous",
         language_code="ru",
     )
-    await repo.touch(user.id)
-    return user
+    await repo.touch(guest.id)
+    return guest
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
