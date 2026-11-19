@@ -62,8 +62,11 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-anime}:${POSTGRES_PASSWORD:-anime}@postgres:5432/${POSTGRES_DB:-anime}
       REDIS_URL: redis://redis:6379/0
-      # Verifies the Telegram WebApp signature of every request.
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
+      # Verifies the Telegram WebApp signature of every request.  It is
+      # optional locally: without it the API disables Telegram login and only
+      # the "dev" authorization scheme works.  The production overlay makes
+      # the variable mandatory again.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_INIT_DATA_MAX_AGE: ${TELEGRAM_INIT_DATA_MAX_AGE:-86400}
       CORS_ORIGINS: ${CORS_ORIGINS:-https://watch.awebm.cc}
       ALLOWED_PROVIDERS: ${ALLOWED_PROVIDERS:-aniliberty,yummy_anime,animevost,animego}
@@ -108,7 +111,8 @@ services:
     # The bot only opens the Mini App: it talks to Telegram and never to the
     # API or the database.
     environment:
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
+      # Without a token the bot cannot start; run it only with a real one.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-https://watch.awebm.cc}
     depends_on:
       api:

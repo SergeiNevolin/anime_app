@@ -31,6 +31,9 @@ services:
   api:
     restart: always
     pull_policy: always
+    environment:
+      # A production deployment must never start without the token.
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
     deploy:
       resources:
         limits:
@@ -58,6 +61,8 @@ services:
   bot:
     restart: always
     pull_policy: always
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN in .env}
     deploy:
       resources:
         limits:
